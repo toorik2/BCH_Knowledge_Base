@@ -191,11 +191,11 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ✅ Manual operations: `x = x + 1` (not `x++` or `x += 1`)
 - ✅ Overflow checks: `require(a + b >= a)`
 
-### Bitwise Operations (Version-Dependent)
-- ❌ Legacy: No shift operators (`<<`, `>>`)
-- ❌ Legacy: No bitwise NOT (`~`)
-- ✅ Legacy: Only `&`, `|`, `^`
-- ✅ Modern (recent upgrades): Full bitwise support including `~`, shifts
+### Bitwise Operations
+- ❌ Current: No shift operators (`<<`, `>>`)
+- ❌ Current: No bitwise NOT (`~`)
+- ✅ Current: Only `&`, `|`, `^`
+- ✅ May 2026 upgrade: Full bitwise support including `~`, shifts
 
 ### Token Category Byte Order
 - ⚠️ `tokenCategory` returned in unreversed order (unlike tx hashes)
@@ -215,9 +215,9 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ✅ For data storage, use NFT commitments
 - ✅ Transaction structure itself communicates state changes
 
-### Loops (Pre-v0.13.0)
-- ❌ No `for`, `while` loops in older versions
-- ✅ v0.13.0+: `do { } while()` syntax (beta)
+### Loops
+- ❌ No `for`, `while` loops in v0.12.1 (current stable)
+- ✅ v0.13.0+: `do { } while()` syntax (experimental/beta, not yet released)
 - ✅ ALWAYS validate bounds: `require(count <= maxIterations)` before loop
 - ✅ Check loop state for overflows
 
@@ -232,8 +232,8 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ✅ P2S (Pay to Script) reduces tx size by 23-35 bytes vs P2SH
 
 ### Bytecode Limits
-- ✅ 10,000 bytes unlocking bytecode limit
-- ✅ NFT commitment: 128 bytes
+- ✅ 10,000 bytes unlocking bytecode limit (May 2026 upgrade)
+- ✅ NFT commitment: 40 bytes current (128 bytes in May 2026)
 
 ## Type System Reference
 

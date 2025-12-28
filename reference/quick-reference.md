@@ -4,7 +4,7 @@
 
 ### Contract Structure
 ```cashscript
-pragma cashscript ^0.11.0;
+pragma cashscript ^0.12.1;
 
 contract ContractName(Type param1, Type param2) {
     // Define reusable functions
@@ -48,7 +48,7 @@ contract ContractName(Type param1, Type param2) {
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `<`, `<=`, `>`, `>=`, `==`, `!=` |
 | Logical | `!`, `&&`, `||` |
-| Bitwise | `&`, `|`, `^`, `~`, `<<`, `>>` |
+| Bitwise | `&`, `|`, `^` |
 
 ### Built-in Functions
 
@@ -84,13 +84,6 @@ OP_UNTIL(condition)    // Loop while condition is false
 
 OP_DEFINE funcName(args) { body }  // Define reusable function
 OP_INVOKE funcName(args)           // Invoke defined function
-```
-
-#### Bitwise Operations
-```cashscript
-~value                 // Bitwise NOT (OP_INVERT)
-value << n             // Left shift by n bits
-value >> n             // Right shift by n bits
 ```
 
 ### Global Variables
@@ -222,7 +215,7 @@ contract.functions
 
 ## CashTokens Integration
 
-*Token commitments support up to 128 bytes (BLS12-381 compatible). Unlocking bytecode limit: 10,000 bytes.*
+*Token commitments: max 40 bytes (128 bytes in May 2026 upgrade). Unlocking bytecode limit: 10,000 bytes (May 2026 upgrade).*
 
 ### Token Output (SDK)
 ```javascript
@@ -400,13 +393,13 @@ new ElectrumNetworkProvider('mainnet', 'server.example.com')
 ## Version Compatibility
 
 ### CashScript Versions
-- `^0.11.0` - Latest stable
+- `^0.12.1` - Latest stable
 - `>=0.10.0` - Minimum supported
 - `^0.8.0` - Legacy support
 
 ### Pragma Directive
 ```cashscript
-pragma cashscript ^0.11.0;  // Compatible with 0.11.x
+pragma cashscript ^0.12.1;  // Compatible with 0.11.x
 pragma cashscript >=0.10.0; // 0.10.0 and above
 ```
 

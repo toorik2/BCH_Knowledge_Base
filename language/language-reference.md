@@ -99,12 +99,12 @@ require(tx.outputs[0].nftCommitment == bytes4(newID) + restOfCommitment);
 | `tx.inputs[i].outpointIndex` | `int` | UTXO source output index | - |
 | `tx.inputs[i].sequenceNumber` | `int` | nSequence value | Relative timelock in v2 tx only |
 | `tx.inputs[i].tokenCategory` | `bytes` | Input token category | 32-byte ID + optional capability (0x01=mutable, 0x02=minting) |
-| `tx.inputs[i].nftCommitment` | `bytes` | Input NFT commitment | CashTokens, max 128 bytes |
+| `tx.inputs[i].nftCommitment` | `bytes` | Input NFT commitment | CashTokens, max 40 bytes (128 in May 2026) |
 | `tx.inputs[i].tokenAmount` | `int` | Input fungible tokens | CashTokens, max 64-bit |
 | `tx.outputs[i].value` | `int` | Output satoshi amount | Bounds: `i < tx.outputs.length` |
 | `tx.outputs[i].lockingBytecode` | `bytes` | Output script bytecode | - |
 | `tx.outputs[i].tokenCategory` | `bytes` | Output token category | 32-byte ID + optional capability (0x01=mutable, 0x02=minting) |
-| `tx.outputs[i].nftCommitment` | `bytes` | Output NFT commitment | CashTokens, max 128 bytes |
+| `tx.outputs[i].nftCommitment` | `bytes` | Output NFT commitment | CashTokens, max 40 bytes (128 in May 2026) |
 | `tx.outputs[i].tokenAmount` | `int` | Output fungible tokens | CashTokens |
 | `this.activeInputIndex` | `int` | Current input being evaluated | - |
 
@@ -208,7 +208,7 @@ contract StatefulContract(bytes32 stateTokenCategory) {
 
 **Key concepts**:
 - **Local transferrable state**: NFT commitments persist across transactions
-- **Local transferrable functions**: Store function logic in 128-byte commitments (post-May 2025)
+- **Local transferrable functions**: Store function logic in 128-byte commitments (post-May 2026)
 - **NOT OP_RETURN**: OP_RETURN is provably unspendable (funds burned), not for storage
 
 ## OP_RETURN OUTPUTS

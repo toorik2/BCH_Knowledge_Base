@@ -32,7 +32,7 @@ const txDetails = await new TransactionBuilder({ provider })
 
 ### Pay to Script (P2S) Support
 
-Bitcoin Cash supports Pay to Script (P2S) outputs, allowing direct script usage without hashing overhead. P2S is now standard and reduces transaction size by 23-35 bytes per output compared to P2SH. The unlocking bytecode limit is 10,000 bytes, enabling complex contract logic.
+Bitcoin Cash supports Pay to Script (P2S) outputs, allowing direct script usage without hashing overhead. P2S becomes standard in the May 2026 upgrade and reduces transaction size by 23-35 bytes per output compared to P2SH. The unlocking bytecode limit unifies to 10,000 bytes in May 2026, enabling complex contract logic.
 
 ## Basic Transaction Building
 
@@ -220,7 +220,7 @@ const txDetails = await contract.functions
 
 ## CashTokens Integration
 
-Bitcoin Cash supports CashTokens for fungible and non-fungible token functionality. Token commitments can be up to 128 bytes, supporting advanced use cases like BLS12-381 KZG commitments for bilinear pairing-based accumulators.
+Bitcoin Cash supports CashTokens for fungible and non-fungible token functionality. Token commitments are currently max 40 bytes (128 bytes in May 2026 upgrade), supporting advanced use cases like BLS12-381 KZG commitments for bilinear pairing-based accumulators.
 
 ### Fungible Token Outputs
 
