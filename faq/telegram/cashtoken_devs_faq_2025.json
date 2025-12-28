@@ -345,7 +345,7 @@
         },
         {
           "q": "What does the 'stack item exceeded 520 bytes' error mean in CashScript?",
-          "a": "This error is about individual stack items during script execution, not your contract's total size. Each item pushed to the stack cannot exceed 520 bytes. This is separate from opcount limits (201) and contract bytecode limits. Check if your contract is manipulating or creating any data structures larger than 520 bytes during execution."
+          "a": "This error is about individual stack items during script execution, not your contract's total size. Since the May 2025 VM Limits upgrade, each stack item can be up to 10,000 bytes (previously 520 bytes). The old 201-opcode limit was also replaced by an operation cost system. Check if your contract is manipulating or creating any data structures larger than 10,000 bytes during execution, or if you're exceeding the operation cost budget."
         }
       ]
     },

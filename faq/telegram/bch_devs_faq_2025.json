@@ -55,7 +55,7 @@
         },
         {
           "q": "What are the locking bytecode limits in TXv5?",
-          "a": "TXv5 (transaction version 5) increases the locking bytecode limit to 100,000 bytes, significantly up from the 201 bytes in P2SH. This is an important consideration because locking bytecode is stored in the UTXO set, which affects node storage requirements. Developers should be mindful of these expanded limits and their impact on UTXO set growth."
+          "a": "TXv5 (transaction version 5) increases the locking bytecode limit to 100,000 bytes, significantly up from P2SH limits. This is an important consideration because locking bytecode is stored in the UTXO set, which affects node storage requirements. Developers should be mindful of these expanded limits and their impact on UTXO set growth."
         },
         {
           "q": "Why do the bytecode length limits no longer matter after the VM Limits CHIP?",

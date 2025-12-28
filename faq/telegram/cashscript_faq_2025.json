@@ -50,7 +50,7 @@
         },
         {
           "q": "Does CashScript support loops?",
-          "a": "Yes, CashScript @next version has a do-while looping construct. This feature was developed before the BCH Blaze Hackathon to make it available for participants. Documentation is available at next.cashscript.org/docs/language/contracts#loops-beta. Note that loops are still in beta as they depend on the May 2025 network upgrade opcodes."
+          "a": "Yes, CashScript @next version has a do-while looping construct. This feature was developed before the BCH Blaze Hackathon to make it available for participants. Documentation is available at next.cashscript.org/docs/language/contracts#loops-beta. Note that while the underlying VM Limits upgrade activated in May 2025, native loop opcodes (OP_BEGIN/OP_UNTIL) are part of the May 2026 upgrade."
         },
         {
           "q": "How do I compile do-while loops in CashScript?",
@@ -291,7 +291,7 @@
         },
         {
           "q": "Can I store data in a CashScript contract like Solidity?",
-          "a": "BCH does not have global state like Ethereum. Instead, create a CashToken NFT and store data in its commitment. This gives local transferrable state your contract can introspect to base decisions off and update if needed. The commitment size is currently max 40 bytes, increasing to 128 bytes with the May 2025 upgrade."
+          "a": "BCH does not have global state like Ethereum. Instead, create a CashToken NFT and store data in its commitment. This gives local transferrable state your contract can introspect to base decisions off and update if needed. The commitment size is currently max 40 bytes, increasing to 128 bytes with the May 2026 upgrade."
         },
         {
           "q": "Why doesn't BCH have global state like Ethereum?",
@@ -340,7 +340,7 @@
         },
         {
           "q": "What is the current contract size limit in CashScript?",
-          "a": "With the upcoming VM limits upgrade, there's a 1650 bytes contract size limit. When compiling a contract with cashc, you'll get a warning if your contract exceeds this limit: 'Warning: Your contract is X bytes, which is over the limit of 1650 bytes and will not be accepted by the BCH network.'"
+          "a": "Since the May 2025 VM Limits upgrade, the old 520-byte stack element limit has been increased to 10,000 bytes and the 201-opcode limit replaced by an operation cost system. The CashScript compiler may still warn about contract sizes for standardness reasons, but consensus limits are now much more generous. Check cashscript.org for current standardness limits."
         }
       ]
     },
@@ -452,7 +452,7 @@
         },
         {
           "q": "What features are expected in the May 2025 BCH upgrade for CashScript?",
-          "a": "The May 2025 upgrade is expected to enable several new CashScript capabilities including native loops and support for 128-byte NFT commitments (increased from the current 40 bytes). These features are already being designed for in experimental contracts like prediction markets."
+          "a": "The May 2025 upgrade (now active) enabled VM Limits removal and BigInt support, allowing more complex contracts. The May 2026 upgrade will add native loops, 128-byte NFT commitments (up from 40 bytes), and P2S standard. These features are already being designed for in experimental contracts like prediction markets."
         }
       ]
     },

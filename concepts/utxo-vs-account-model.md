@@ -231,9 +231,17 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ⚠️ P2SH20 (20-byte hash) is legacy, less collision-resistant
 - ✅ P2S (Pay to Script) reduces tx size by 23-35 bytes vs P2SH
 
-### Bytecode Limits
-- ✅ 10,000 bytes unlocking bytecode limit (May 2026 upgrade)
+### VM Limits (May 2025 - ACTIVE)
+- ✅ Stack element limit: 10,000 bytes (was 520 bytes)
+- ✅ 201-operation limit removed, replaced by operation cost system
+- ✅ BigInt support for large number arithmetic
+- ✅ Operation cost budget: (41 + unlocking_bytecode_length) × 800
+
+### May 2026 Upgrade (Future)
+- ✅ 10,000 bytes unlocking bytecode limit (standard transactions)
 - ✅ NFT commitment: 40 bytes current (128 bytes in May 2026)
+- ✅ P2S (Pay to Script) becomes standard
+- ✅ Native loops (OP_BEGIN/OP_UNTIL) and functions
 
 ## Type System Reference
 

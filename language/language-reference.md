@@ -1313,6 +1313,14 @@ contract MasterReference() {
 - Tuples: only from `split()` operations
 
 ### Operational Limits
+
+**VM Limits (May 2025 - ACTIVE):**
+- Stack element limit: 10,000 bytes (was 520 bytes)
+- 201-opcode limit: REMOVED, replaced by operation cost system
+- Operation cost budget: (41 + unlocking_bytecode_length) × 800
+- BigInt support: enabled for large number arithmetic
+
+**Other Limits:**
 - `tx.time` semantics: <500,000,000 = block height, ≥500,000,000 = Unix timestamp. Only use with `require(tx.time >= expr)`
 - `this.age` encoding: blocks only (SDK limitation, not 512-sec chunks). Only use with `require(this.age >= expr)`
 - Array access: ALWAYS validate `.length` before indexing
