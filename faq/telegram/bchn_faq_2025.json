@@ -1,0 +1,951 @@
+{
+  "name": "BCHN FAQ",
+  "type": "telegram_extraction",
+  "source": "Bitcoin Cash Node Telegram 2025",
+  "extraction_date": "2025-12-28",
+  "total_faqs": 222,
+  "categories": [
+    {
+      "name": "Initial Block Download & Sync",
+      "count": 61,
+      "faqs": [
+        {
+          "q": "How long does Initial Block Download (IBD) take for a BCHN node?",
+          "a": "IBD time depends primarily on disk speed: approximately 12 hours on SSD, or 3-4 days on a slow spinning disk (HDD). With a top-of-the-line NVMe SSD, sync can complete in 3-4 hours. RAM is not a significant factor - disk I/O is the main bottleneck."
+        },
+        {
+          "q": "Is it safe to download blockchain checkpoints or snapshots from third parties?",
+          "a": "It's not recommended to download blockchain data from unknown third-party sources. This creates trust issues since you can't verify the data wasn't tampered with. IBD from genesis doesn't take that long on modern hardware, so the security trade-off isn't worth it. However, copying your own node's data folder to another machine you control is fine."
+        },
+        {
+          "q": "What hardware specs matter most for running a BCHN node?",
+          "a": "Disk speed is the most important factor, particularly for Initial Block Download. An NVMe SSD dramatically outperforms HDDs. RAM is not a significant factor - 8GB is plenty, and 16GB is more than enough. CPU helps with validation but isn't usually the bottleneck. For example, an 8-core VM with 16GB RAM and SSD storage can sync overnight with txindex enabled."
+        },
+        {
+          "q": "How do I restart sync from a specific block height if my node is on a bad chain or stuck?",
+          "a": "Use the invalidateblock RPC command on a block hash to remove that block and all its descendants from your chain. Then use reconsiderblock on the same hash to restart sync from that height. For example, you could invalidateblock the last halving block, then reconsiderblock it to restart sync from that point."
+        },
+        {
+          "q": "How do I update my BCHN node to a new version on Linux?",
+          "a": "The update process is straightforward: 1) Download the new version, 2) Unpack it, 3) Replace the old binaries with the new ones, 4) Restart the node. That's it - no special migration needed between minor versions."
+        },
+        {
+          "q": "Is BCHN Initial Block Download faster than Bitcoin Core?",
+          "a": "Yes, BCHN IBD is significantly faster than bitcoind. This is likely due to both IBD improvements made by BCHN developers and the fact that BCH blocks are much less full than BTC blocks post-fork, meaning less data to process per block."
+        },
+        {
+          "q": "What IBD time can I expect with high-end hardware?",
+          "a": "With top-end hardware (i9-14900k, 128GB DDR5, Samsung 990 Pro NVMe SSD, 3 Gbps internet), full IBD with txindex completes in about 3 hours. The bottleneck is typically the peers providing blocks, as CPU usage stays around 15%, RAM usage about 2GB, IOPS at 25%, and bandwidth 250-500 Mbps."
+        },
+        {
+          "q": "Why does CPU usage increase during IBD at a certain block height?",
+          "a": "There's a checkpoint in BCHN where signature verification begins. Before this checkpoint, signatures aren't fully verified to speed up IBD. After the checkpoint, full cryptographic verification occurs, increasing CPU usage significantly. You can configure the node to perform complete verification from genesis, which is slower but more thorough."
+        },
+        {
+          "q": "How can I rebuild my chainstate without re-downloading the blockchain?",
+          "a": "Delete the chainstate directory (and optionally txindex) while keeping your blocks folder. When you restart the node, it will rebuild the chainstate and UTXO set from your local block files. This eliminates download bottlenecks and tests your local verification speed. Rebuilding takes roughly 2h45m on high-end hardware without network overhead."
+        },
+        {
+          "q": "What are the main performance bottlenecks during IBD and verification?",
+          "a": "The limiting bottleneck is typically a single-threaded unbuffered loop handling random reads and writes to the database. SSD random I/O performance requires high queue depth with multiple parallel threads to achieve maximum throughput. There's also I/O amplification from Berkeley database indexing. Modern SSDs can achieve 10x better random I/O with parallel threads vs single-threaded access."
+        },
+        {
+          "q": "Can I run BCHN on a Raspberry Pi 5?",
+          "a": "Yes. With an NVMe SSD, IBD completes in about 5 hours 41 minutes on a Pi5. Full verification (checking all signatures from genesis) takes about 21 hours, partly due to limited 8GB RAM preventing the UTXO database from being fully cached. A system with more RAM (64GB+) can cache the entire UTXO set."
+        },
+        {
+          "q": "What should I do after my BCHN node is fully synced?",
+          "a": "1) Copy it to a headless (no monitor) Linux server, 2) Make sure all ports are open and the node is visible from the outside - verify by connecting from a different internet connection like mobile/LTE, 3) Run the software for years in the background, 4) Occasionally connect via SSH to download and install BCHN updates (about once a year), 5) That's it - you're helping the network by providing peer connectivity and block propagation."
+        },
+        {
+          "q": "What is UTXO commitments and why is it better than bootstrap files?",
+          "a": "UTXO commitments is a protocol feature being developed for Bitcoin Cash that allows nodes to verify a UTXO set snapshot cryptographically without trusting the source. Unlike bootstrap/checkpoint files which require trusting whoever provides them (an attack vector), UTXO commitments enable trustless fast-sync by including a hash of the UTXO set in block headers. This provides the speed benefit of snapshots with the security of full verification."
+        },
+        {
+          "q": "How do I configure dbcache to allocate more RAM for faster sync?",
+          "a": "Add 'dbcache=1000' to your bitcoin.conf file to allocate 1GB of RAM for the database cache. This is near the point of diminishing returns, as Linux will also cache I/O. The default is a small amount, so explicitly setting it can speed up sync significantly. You need to specifically allocate RAM in the config - it won't automatically use available system RAM."
+        },
+        {
+          "q": "Can external storage cause slow sync times?",
+          "a": "Yes, using external storage (especially over USB) can significantly slow down IBD. USB connections add latency compared to internal SATA or NVMe connections. If your sync is unusually slow, check if you're using external storage and consider using an internal drive instead."
+        },
+        {
+          "q": "Why does sync slow down dramatically near the end?",
+          "a": "Two main reasons: 1) Blocks get much bigger in recent years due to increased usage, and 2) newer blocks get full signature checking which is CPU-intensive. You can use the 'connect=<ip>' option to download from a trusted node on your LAN for faster, more controlled sync. This also spares other people's bandwidth."
+        },
+        {
+          "q": "Does BCHN sync reliably from block 0 without manual intervention?",
+          "a": "Yes, BCHN syncs reliably from genesis in most cases. BCHN developers have synced many times without issues. Some users report needing to use invalidateblock if they got stuck on a forked chain, but this is rare. Problems usually stem from unreliable hardware, power issues, unstable OS, or poor network connections rather than BCHN software issues."
+        },
+        {
+          "q": "How do I configure bitcoin.conf to speed up a slow sync?",
+          "a": "Create a bitcoin.conf file with: 'listen=0' (don't listen for incoming connections), 'connect=<ip>' (connect only to a specific trusted peer like your own fast node), and 'dbcache=1000' (allocate 1GB RAM for database cache). Save this in the BCHN data directory ($HOME/Library/Application Support/Bitcoin/ on macOS, ~/.bitcoin/ on Linux). Restart the node to apply changes."
+        },
+        {
+          "q": "Is there a bootstrap option for extremely slow hardware?",
+          "a": "There's a BitcoinCash1/Mainnet repository on GitHub that provides blockchain data you can download. However, syncing from the network is always recommended. If your hardware is so slow that sync would take years, the node probably won't be useful to the network anyway - it may burden other nodes with latency and bandwidth costs. Consider upgrading your hardware before running a public node."
+        },
+        {
+          "q": "What causes LevelDB corruption errors during BCHN sync?",
+          "a": "LevelDB corruption (block checksum mismatch errors) can be caused by: 1) Hardware issues that disk tests might not detect, 2) Docker/container environment issues - try the straight x64 binary instead, 3) OS compatibility problems - RHEL-based systems have more issues than Debian. If fsck and badblocks pass but corruption persists on multiple machines, try a clean Debian installation without containers."
+        },
+        {
+          "q": "What is the -debug=leveldb flag used for?",
+          "a": "The -debug=leveldb flag enables more detailed diagnostic messages when LevelDB errors occur. If you're experiencing database corruption during sync, restart your node with this flag to get more complete information in the debug.log file about what's going wrong."
+        },
+        {
+          "q": "Can defective RAM cause LevelDB corruption during sync?",
+          "a": "Yes, don't rule out RAM as a cause of LevelDB corruption. Defective RAM and CPUs can do unexpected things that disk tests might not detect. If you've tested the hard drive and still see corruption, consider running memory diagnostics. Also, Docker containers still run on your main OS's filesystem and kernel - recent OS upgrades can cause issues that Docker can't isolate."
+        },
+        {
+          "q": "Is 8GB of RAM enough for a BCH node on Raspberry Pi?",
+          "a": "Yes. People have successfully run 2 BCHN instances (mainnet + chipnet) with respective Fulcrum instances on a Pi 4 with 8GB without problems. Just make sure you have some swap configured for the initial sync and be prepared for the machine to spend a couple of days of work until it's up and running."
+        },
+        {
+          "q": "Do I need to configure swap for Raspberry Pi initial sync?",
+          "a": "Yes, make sure you have some swap configured for the initial sync on Raspberry Pi. The sync process can be memory-intensive, and having swap prevents out-of-memory issues. Be prepared for the machine to spend a couple of days working until it's up and running with 8GB RAM."
+        },
+        {
+          "q": "Can a power outage or brown-out cause sync issues?",
+          "a": "Yes. Power issues like brown-outs can damage RAM, which then causes LevelDB corruption during sync. In one reported case, persistent LevelDB corruption during sync was traced back to RAM damaged by a power brown-out. If you're experiencing unexplained sync failures, consider running memory diagnostics and checking your power supply."
+        },
+        {
+          "q": "How do I generate a wallet address and mine after syncing my node?",
+          "a": "Use the bitcoin-cli binary which has wallet and mining commands. Run 'bitcoin-cli help' to see available commands. However, for day-to-day wallet use, you'd probably prefer Electron Cash instead of the full node wallet. For mining, you'll need separate mining software since BCHN doesn't include built-in mining functionality - the mining software works together with BCHN."
+        },
+        {
+          "q": "Is there a GUI version of BCHN for Linux?",
+          "a": "Yes. BCHN ships two apps in the same download: bitcoind for CLI and bitcoin-qt for GUI. The Ubuntu PPA also has both. Check if you already have bitcoin-qt in your installation - it gets shipped with bitcoind."
+        },
+        {
+          "q": "Is BCHN faster to sync than bchd or Bitcoin Verde?",
+          "a": "Yes. BCHN is faster to sync than the alternatives (bchd and bitcoin-verde). BCHN takes well under eight hours to sync on a good machine, sometimes much faster. Claims that 'BCHN is slow' are misinformation - it's the fastest BCH full node implementation to sync."
+        },
+        {
+          "q": "How do I know if my BCHN node has finished syncing?",
+          "a": "Check the 'initialblockdownload' field using 'bitcoin-cli getblockchaininfo'. If 'initialblockdownload' is 'false', then the sync is done. Note that 'verificationprogress' will never be exactly 1 due to the weird way it's calculated, so use 'initialblockdownload' instead."
+        },
+        {
+          "q": "What should I do if my BCHN sync gets stuck?",
+          "a": "Stop the sync and start it again - this usually solves 99% of the issues. It's typically due to network issues. Don't download from random torrent sources; just do sync from scratch, it's fast enough."
+        },
+        {
+          "q": "How does RAM affect IBD time?",
+          "a": "RAM has a measurable but not dominant effect on IBD. On an i5 mini PC, IBD with 64GB RAM took 2h37m, while the same system limited to 8GB took 4h00m. The benefit comes from OS caching. Putting chainstate in a RAM disk only improved time slightly (to 2h29m) because IO processing is single-threaded, limiting parallelization benefits."
+        },
+        {
+          "q": "What's the standard practice for deploying multiple nodes?",
+          "a": "Initial sync on a high-end system, then make your own archive of the data and use it to initialize other nodes. Update your backup occasionally. This is faster than syncing each node from scratch. An 'official' snapshot creates inappropriate trust dependency - keeping your own works great."
+        },
+        {
+          "q": "Why is the node P2P network better than torrent snapshots?",
+          "a": "The node P2P network IS essentially a torrent network specifically tailored for blockchain. Nodes connect to a P2P network and download blockchain in chunks, but unlike torrents, they also verify as they download rather than waiting for the full download to complete before starting verification. This makes P2P sync more efficient than torrent-then-verify approaches."
+        },
+        {
+          "q": "What's the best way to keep BCHN updated automatically?",
+          "a": "Install via Linux package manager (like Ubuntu PPA), and system updates will automatically keep BCHN updated. For manual installation: download new version, check signatures and checksums, unpack archive, stop service, copy binary, restart service. Package managers may have a slight version lag but ensure dependencies are correct."
+        },
+        {
+          "q": "Are UTXO commitments urgent for BCH?",
+          "a": "Views differ. Some say it can wait years since internet/storage speeds keep increasing and IBD is already fast on modern hardware. Others argue it's important for first sync at mass adoption levels - even with fast hardware, IBD takes hours, and hardware may not scale as fast as chain growth with 256MB+ blocks."
+        },
+        {
+          "q": "What does 'checkpoint mismatch' error mean in BCHN logs?",
+          "a": "This is normal behavior - a peer sent block headers that don't match BCHN's embedded checkpoints. The peer is marked as 'misbehaving' and discouraged (banned temporarily). Your node continues syncing from valid peers. Not everything printed to output are actual errors - BCHN is just telling you what's happening in the network."
+        },
+        {
+          "q": "What does 'socket recv error Connection reset by peer (104)' mean in BCHN logs?",
+          "a": "This is not an error - it simply means a peer disconnected for any reason. This happens all the time and will continue to happen. Check progress=1.00000 which indicates 100% synced. Not all 'spooky' log messages are actual errors."
+        },
+        {
+          "q": "How efficient is Compact Blocks for very large blocks?",
+          "a": "Compact Blocks has about 3% overhead relative to blocksize. At 1GB blocks, the transaction list would be ~30MB - still manageable with modern 1-2 Gbps bandwidth. If mempools are synced between nodes, blocks propagate easily with less than 1% missing transactions needing to be requested separately."
+        },
+        {
+          "q": "How can block propagation be optimized for scaling?",
+          "a": "Nodes should set mempool policies to accept as many transactions as possible, minimizing missing transactions when receiving blocks. Ideally, nodes would maintain two caches: one for block template transactions and one for all valid transactions ever seen. The validation bottleneck should be removed from propagation, allowing pipelining of block data as it downloads."
+        },
+        {
+          "q": "What happens when BCHN's mempool gets full?",
+          "a": "Transactions are randomly dropped from the mempool when it's full, and this affects the minrelay fee for the node (it increases). This is Satoshi-era legacy architecture. The node may later have to re-download dropped transactions when they appear in a block. Modern hardware has plenty of RAM and NVMe cache to avoid this, but the architecture hasn't been updated."
+        },
+        {
+          "q": "What does 'error code: -10 - Bitcoin is downloading blocks' mean when mining on testnet?",
+          "a": "This error means your node is still syncing with the network and can't provide block templates for mining yet. Wait until your node is fully synced before attempting to mine. The error resolves automatically once sync completes."
+        },
+        {
+          "q": "What is the difference between Erlay and Graphene for block propagation?",
+          "a": "Compact Blocks have download size that scales linearly with number of transactions because you must send the list of txids. Graphene further reduces the data needed to communicate which transactions are missing. However, Compact Blocks will probably be fine forever. If faster blocks are implemented, blocks stay smaller and Graphene's value proposition diminishes. Compact Blocks should be adequate for the foreseeable future."
+        },
+        {
+          "q": "What are the concerns about 1-minute blocks for SPV wallets and nodes?",
+          "a": "With 1-minute blocks, there would be ~1 million blocks every 2 years. This creates header download concerns for SPV wallets (~800MB for 10 million headers from 2009 to now). BCHN currently keeps block headers in memory (~400 bytes per header in CBlockIndex), which would require 4GB RAM at 10 million blocks. While blocks can be pruned, headers cannot. However, SPV wallets can use header merkle proofs (periodic checkpoints) to avoid downloading all headers, making this solvable without consensus changes."
+        },
+        {
+          "q": "What are the tradeoffs of reducing block time to 1 minute?",
+          "a": "It's not magical pixie dust - it solves some problems (variance reduction, faster finality for DeFi, potentially more mining decentralization) but creates new ones (10x more headers to download, more memory for header index, questions about reorg protection interactions at lower difficulty). The only purely technical concern is header size increase, but memory and bandwidth have improved far more than 10x since 2010. From a purely technical view, 1-minute blocks are superior to 10-minute blocks. The real issue is ecosystem impact and risk of politically induced chain split."
+        },
+        {
+          "q": "What happens when Compact Blocks fail to reconstruct a block?",
+          "a": "Compact Blocks fail gracefully - even a full block download is just 3% overhead compared to a simple block message. Graphene is more complex and its fallback behavior when missing transactions is less clear. Since internet speeds keep improving, Compact Blocks' simple approach with graceful degradation is likely sufficient indefinitely."
+        },
+        {
+          "q": "What are the IBD times for Raspberry Pi 5 with different storage options?",
+          "a": "On a Pi5 (8GB RAM, Ubuntu 24.04, dbcache=1000, txindex=1, gigabit internet): NVMe SSD takes 5h41m with default verification, or ~21h with full signature validation. USB-connected SATA drive takes 12h8m. Network storage via NFS takes 23h11m (26h17m through Wireguard), and SMB connection takes a whopping 261 hours. USB-connected SSDs on Pi5 are unreliable - they cause IO errors and read-only filesystem crashes. Use NVMe connection for reliability."
+        },
+        {
+          "q": "What are the main performance bottlenecks during IBD?",
+          "a": "For mid-range and low-end PCs, IBD is either CPU-bound during signature checking, or IO-bound when managing the UTXO set. The IO problem is complex - it involves interaction between node software, database software (LevelDB), filesystem, and OS kernel, complicated by CPU caching. To benchmark properly, you can run IBD off a single local node to eliminate network variance, or rerun IBD after removing chainstate to test pure local verification speed."
+        },
+        {
+          "q": "What stratum proxy works well with BCHN for solo mining?",
+          "a": "asicseer-pool (github.com/cculianu/asicseer-pool) works with zero fuss for BCHN solo mining. It's written in clean C code, builds easily on ARM64 devices like Raspberry Pi, and works reliably without heavy dependencies. Simply sync your BCHN node, configure asicseer-pool, and point your ASICs (like Bitaxe) at it to start solo mining."
+        },
+        {
+          "q": "Where can I find official Docker images for BCHN?",
+          "a": "The official BCHN download page (bitcoincashnode.org/en/download) points to hub.docker.com/r/zquestz/bitcoin-cash-node. Other well-maintained Docker images include hub.docker.com/r/uphold/bitcoin-cash-node. For Fulcrum (Electrum server), use hub.docker.com/r/cculianu/fulcrum by the same developer."
+        },
+        {
+          "q": "Does BCHN have native Apple Silicon (ARM64) support?",
+          "a": "Currently BCHN only provides x86_64 macOS builds. Apple M-series users can run it through Rosetta 2 which works well. Native ARM64 builds are planned for the future - when released, they'll likely be a 'fat' universal binary supporting both architectures in one download."
+        },
+        {
+          "q": "How can I solve USB SSD power issues on Raspberry Pi?",
+          "a": "Don't power SSDs from the Pi's USB ports - Pi USB power is often insufficient. Use an external 5V power supply connected directly to the SSD while keeping the USB cable for data only (cut the power wire or use a data-only cable). Use a 5V relay to synchronize SSD power on/off with the Pi. Pi5 with NVMe via PCIe is more reliable than Pi4 with USB-connected drives."
+        },
+        {
+          "q": "What OS should I use for BCHN on Raspberry Pi 5?",
+          "a": "Raspberry Pi OS (64-bit full version) works perfectly out of the box. No need for Ubuntu or other distros. Use the Raspberry Pi Imager to install it directly to your NVMe or SD card. For BCHN, download the aarch64-linux-gnu version from the GitHub releases page."
+        },
+        {
+          "q": "Do I need to install Berkeley DB separately for BCHN?",
+          "a": "No. BCHN binaries are pre-compiled with everything needed - just download and run. Berkeley DB 5.3 is only required if you're building from source code. For Raspberry Pi, download the aarch64-linux-gnu version and run it directly without any compilation."
+        },
+        {
+          "q": "How do I start BCHN on Raspberry Pi after downloading?",
+          "a": "Unzip the downloaded tar.gz file, navigate to the bin folder (cd bitcoin-cash-node-28.0.1/bin), then run ./bitcoin-qt for the GUI version or ./bitcoind for the headless daemon. Initial blockchain sync takes about 13 hours on Pi5 with good internet. If you get 'node is probably already running' error, reboot the Pi and try again."
+        },
+        {
+          "q": "How much RAM does BCHN need on Raspberry Pi?",
+          "a": "8GB is plenty. Fully synced BCHN plus asicseer-pool uses less than 2GB total. During initial sync, RAM usage stays around 2GB. The 8GB Pi5 leaves plenty of room for running other programs alongside your node."
+        },
+        {
+          "q": "What is a peer in BCHN terminology?",
+          "a": "A peer is another node on the BCH network. There are fully synced peers with complete blockchain data, pruned peers that only keep recent blocks, and peers currently syncing. Your node connects to peers to exchange block data and transactions."
+        },
+        {
+          "q": "How can I monitor my BCHN node's resource usage?",
+          "a": "Install btop with 'sudo apt install btop -y' then run 'btop' in terminal. It shows real-time CPU, RAM, and network usage. On Pi5 during initial sync, CPU typically stays under 20% for early blocks since they have few transactions."
+        },
+        {
+          "q": "What CPU usage should I expect during BCHN initial sync?",
+          "a": "Early blocks have few transactions, so CPU usage is low (limited by disk/network). CPU picks up as blocks get larger. BCHN skips signature verification until the last year of blocks, then CPU can reach 400% (all 4 cores at 100%) during signature checking near the end of sync."
+        },
+        {
+          "q": "What happens if BCHN loses power during initial sync?",
+          "a": "Restart the node and it will continue from where it left off - usually only backing up slightly. For 24/7 operation, consider using a UPS with software to trigger graceful shutdown when battery is low. Use a systemd service file to auto-start/stop BCHN with the OS."
+        },
+        {
+          "q": "Does BCHN run on Windows?",
+          "a": "Yes, BCHN has a Windows version - continuing the tradition from the original Satoshi client which was Windows-only. Downloads are available on the BCHN GitHub releases page. However, Linux (especially Debian) is generally preferred for server reliability and 24/7 operation."
+        },
+        {
+          "q": "Can I run BCHN with an HDD instead of SSD?",
+          "a": "Yes, even a Raspberry Pi can keep up with an HDD, but initial sync takes significantly longer. SSD (even SATA) is better for performance. For mining or high-frequency transaction queries, SSD is strongly recommended. The blockchain data writes mostly once, but UTXO lookups benefit from faster storage."
+        }
+      ]
+    },
+    {
+      "name": "Node Configuration",
+      "count": 23,
+      "faqs": [
+        {
+          "q": "Do antivirus tools flag BCHN as malware?",
+          "a": "Some antivirus tools like Avast, AVG, and DrWeb may flag BCHN as a 'Bitcoin miner' - which is technically accurate since it contains mining code, but this is a false positive in terms of it being malware. If you don't trust the pre-built binaries, you can always build BCHN from source code. You can check VirusTotal for the official releases to verify the scan results."
+        },
+        {
+          "q": "How high will transaction fees be when all BCH is mined and the block subsidy ends?",
+          "a": "Fees should remain similar in purchasing power to what they are today. The Bitcoin Cash strategy is mass adoption - millions of very low-fee transactions that collectively provide substantial block rewards through volume. When the block subsidy runs out, fee markets will drive the system. With the large block space available at that point, there will be a base price like today, and a fee market would only kick in during rare periods of full blocks."
+        },
+        {
+          "q": "Can I copy my BCHN data folder to set up another node?",
+          "a": "Yes, you can copy your own node's data folder to populate another node. Turn off the source node, transfer the entire data folder to the new machine, then start both nodes. Important: both nodes must have the same configuration, especially regarding pruning settings and transaction indexes (txindex)."
+        },
+        {
+          "q": "Why is my node re-indexing after I restarted it?",
+          "a": "A node shouldn't do significant indexing when restarting - only catching up on blocks mined while offline. If you see 'txindex is catching up on block notifications', that's normal brief catch-up. However, if indexing takes days after a simple restart, something may be wrong. Check your logs and ensure your configuration hasn't changed. Adding the txindex option to an existing node without it will trigger a full re-index."
+        },
+        {
+          "q": "Can I connect Electron Cash to a pruned BCHN node?",
+          "a": "No. Electron Cash connects to Electrum-protocol servers (like Fulcrum or electrs), which require txindex to function. txindex is incompatible with pruning. Fundamentally, EC needs transaction history to function, and pruning is the opposite of keeping history - there's no way around this limitation."
+        },
+        {
+          "q": "Can I use BTC mining setup guides for setting up BCH mining?",
+          "a": "Yes, setup guides that work for BTC will also work for BCH with minor adjustments. The mining process is essentially identical since both use SHA-256 proof-of-work. Running a BCH pool is exactly the same as running a BTC pool."
+        },
+        {
+          "q": "Can I run Bitcoin Core (BTC) and BCHN on the same PC at the same time?",
+          "a": "Yes, but you need to customize the configuration files. Each node needs its own data directory (use -datadir option) and unique ports (use -port and -rpcport options). Make sure there are no port conflicts. Running nodes in separate containers or virtual machines is a cleaner approach that avoids configuration conflicts."
+        },
+        {
+          "q": "What does maxconnections actually control?",
+          "a": "The maxconnections setting controls how many nodes you allow to connect TO YOU (incoming connections), not how many nodes you connect to. Most nodes only attempt 8 outgoing connections by default. To actively connect to more peers, use the addnode RPC command or add 'addnode=<ip>' entries to your config file."
+        },
+        {
+          "q": "How do I set up Miningcore mining pool with a BCH node?",
+          "a": "Search for 'retromike miningcore' on YouTube for detailed tutorials on setting up a mining pool with BCHN. The setup allows multiple remote miners to connect to your pool. Before using pool software, enable direct mining on your local BCH node first."
+        },
+        {
+          "q": "Why can't Fulcrum replace BCHN RPC for all public API needs?",
+          "a": "Fulcrum is not feature-complete for all RPC functionality - it doesn't provide some methods like getblock. Its daemon passthrough feature has no whitelist configuration, so enabling it would expose all RPC methods to the public including state-modifying commands. For blockchain data access with missing Fulcrum methods, you need a filtered RPC proxy in front of BCHN."
+        },
+        {
+          "q": "Should Linux node operators configure swap?",
+          "a": "Yes. Swap provides several benefits: 1) It saves you in rare memory exhaustion cases - without swap the kernel kills your process immediately, with swap you have time to react, 2) Unused RAM pages get moved to swap, freeing space for useful file caches. Set swapiness correctly so it doesn't slow down when you have enough RAM. Some Linux distros now default to no swap, which is considered a mistake by experienced operators."
+        },
+        {
+          "q": "What determines minimum hardware requirements for running a BCH node?",
+          "a": "The mempool size setting effectively determines minimum hardware requirements. To guarantee basic quality of experience for users, you need basic quality hardware. If you don't have enough RAM to cache the expected mempool size (currently ~300MB default, should be ~3GB), you can override defaults but should heed warnings. Even a swap file helps on lower-spec machines."
+        },
+        {
+          "q": "Does BCHN support wallets created with older Berkeley DB versions?",
+          "a": "BCHN uses Berkeley DB 5.3. Newer BDB can read older BDB files (like those from version 4.8) but not the other way around. There's an '-upgradewallet' flag that upgrades the wallet database to the latest format when starting BCHN."
+        },
+        {
+          "q": "Why don't exchanges support CashToken addresses for BCH withdrawals?",
+          "a": "While BCHN validates cashtoken addresses, exchanges like Binance only support legacy cash addresses, not token addresses. Many exchanges use the node's RPC directly for consensus, transaction format, and UTXO management rather than implementing it themselves. With enough user pressure and trading volume to justify it, exchanges would likely support token addresses, especially for stablecoins. Making BCHN wallet support CashTokens would make exchange adoption much easier."
+        },
+        {
+          "q": "What ports should I open for my BCHN node?",
+          "a": "For mainnet, open TCP port 8333 for P2P connections with other nodes. Port 8332 is for the RPC interface (local communication with your own applications). The defaults are documented in the example config file at docs.bitcoincashnode.org/share/examples/bitcoin.conf. Only port 8333 needs to be forwarded on your router for incoming peer connections."
+        },
+        {
+          "q": "Does BCHN support testnet for development?",
+          "a": "Yes, BCHN supports multiple test networks. Documentation is available at docs.bitcoincashnode.org/doc/test-networks/. Using testnet is recommended when developing StartOS packages or testing node configurations before deploying to mainnet."
+        },
+        {
+          "q": "Is there a multi-architecture Docker image for BCHN?",
+          "a": "Yes, mainnet/bitcoin-cash-node supports both amd64 and arm64/v8 architectures. It uses Debian trixie-slim as the base image, allowing you to run BCHN on ARM servers and devices. When using it for chipnet/upgrade testing, remember to pass the -upgrade2026activationtime flag."
+        },
+        {
+          "q": "Why is BCHN limited to 16 outgoing connections?",
+          "a": "The outbound connection limit is inherited from Bitcoin Core defaults - nodes make approximately 8-16 outgoing connections by default. The -maxconnections parameter primarily controls inbound connections. Some users report setting very high limits (999+) and reaching hundreds of connections without issues. The conservative default prevents excessive resource usage for typical deployments."
+        },
+        {
+          "q": "Can I run BCHN on a custom P2P port?",
+          "a": "Yes, you can change the port in the config file. The node broadcasts its listening port to peers who pass it along to others. You can run multiple nodes (BCH, BTC, etc.) on the same IP by assigning different ports to each. Ensure your firewall/router allows the custom port. Use listen=1 in config to accept inbound connections on that port."
+        },
+        {
+          "q": "How do I fix Fulcrum build errors on macOS?",
+          "a": "If you get errors like 'unknown type name __builtin_constant_p', upgrade to the latest macOS dev tools and do a clean rebuild: rm .qmake.cache; make distclean; qmake; make -j8. The qmake cache stores old compiler settings that cause issues after dev tool updates - always clean it when upgrading your build environment."
+        },
+        {
+          "q": "How do I enable PCIe Gen3 speed on Raspberry Pi 5?",
+          "a": "Edit /boot/firmware/config.txt and add 'dtparam=pciex1_gen=3' in the [all] section. Check speed before and after with 'sudo hdparm -t --direct /dev/nvme0n1'. This nearly doubles NVMe read performance. Most modern NVMe drives work fine at Gen3 speed."
+        },
+        {
+          "q": "Which Docker image should I use for BCHN?",
+          "a": "mainnet/bitcoin-cash-node is recommended because it supports both ARM and x86 architectures. zquestz/bitcoin-cash-node is another community option. Chris Troutner also maintains a well-documented Docker setup at cashstack.info for running BCH nodes."
+        },
+        {
+          "q": "Is there a Start9 package for BCHN?",
+          "a": "Yes, an alpha Start9OS 0.4.0 package was created. For Fulcrum integration, it needs txindex=1 and ZMQ configuration. The package is being submitted to the Start9 community marketplace. Fulcrum-bch as a separate package is being developed to support running BCH alongside BTC on the same Start9 server."
+        }
+      ]
+    },
+    {
+      "name": "Mining & Consensus",
+      "count": 78,
+      "faqs": [
+        {
+          "q": "Who decides the transaction fee amount in Bitcoin Cash?",
+          "a": "Fees are decided by miners through free market dynamics, just like today. A miner could theoretically set any minimum fee threshold, but pricing too high means processing fewer transactions. The free market determines the correct price. Miners won't mine below what's profitable, but they also won't price themselves above what's economically sustainable for the ecosystem (unless block space is full)."
+        },
+        {
+          "q": "Does mining BCH cost the same as mining BTC?",
+          "a": "Hash rate is governed primarily by price. The cost/revenue ratio between BTC and BCH is always roughly the same due to difficulty adjustments. If either chain becomes more profitable to mine, hash power moves there until the cost-to-revenue ratios balance out. This is how proof-of-work mining naturally equilibrates between SHA-256 chains."
+        },
+        {
+          "q": "Why do I see eCash or BSV nodes when running my BCH node?",
+          "a": "You may see stale peer connections from eCash, ABC, or even BSV nodes. These are legacy peer connections that haven't been cleaned up. They may even attempt to send you blocks, but that doesn't mean you're on the same chain. Your node will reject incompatible blocks. There are no 'eCash nodes on the BCH chain' - these are just stale peer entries."
+        },
+        {
+          "q": "What is Bitcoin Core's 'kernel API' refactoring?",
+          "a": "Bitcoin Core refactored their code into two portions: the 'kernel' containing core primitives and consensus/blockchain management, and everything else. However, this kernel isn't particularly reusable outside their build system - it's mainly internal code organization to make development and maintenance more scalable for their team. It doesn't significantly impact node performance or scaling capabilities."
+        },
+        {
+          "q": "What does 'can't open the block database' error mean?",
+          "a": "This usually means the database files are locked by another process, corrupted, or you're trying to use the same data directory for multiple node implementations. If running both BTC and BCH nodes, ensure each uses a different data directory. Stop any other node instances, check for lock files in the data directory, and ensure you have proper file permissions."
+        },
+        {
+          "q": "How many publicly accessible nodes are there on the BCH network?",
+          "a": "Around 200-500 publicly accessible nodes. While smaller than some other networks, BCH prioritizes on-chain scaling over node count. The network benefits from more public-facing nodes with open ports that can accept incoming connections. Fewer nodes means faster block propagation due to network diameter."
+        },
+        {
+          "q": "Has BCH already fixed the issues in Bitcoin Core's Great Consensus Cleanup proposal?",
+          "a": "Yes, BCH has already addressed all the issues that Bitcoin Core's Great Consensus Cleanup proposes to fix: 1) Timewarp attack - impossible on BCH due to the ASERT DAA which examines block times differently, 2) Worst case block validation time (quadratic hashing) - already fixed, 3) 64-byte transactions - already disallowed on BCH. These fixes were implemented years ago."
+        },
+        {
+          "q": "Is the timewarp attack possible on BCH?",
+          "a": "No. The timewarp attack is only possible on BTC due to a quirk/bug in how Bitcoin Core's DAA examines block times only on the first and 2016th blocks. BCH uses the ASERT DAA which is more sophisticated and doesn't have this vulnerability. The timewarp attack has never been possible on BCH since the DAA upgrade."
+        },
+        {
+          "q": "How does BCH's DAA prevent the timewarp attack?",
+          "a": "BCH's ASERT DAA adjusts difficulty every single block and uses a 3-block median timestamp. Unlike BTC's 2016-block adjustment window that only examines timestamps on boundary blocks, ASERT continuously evaluates block times. This design completely eliminates the timewarp attack vector that exists in Bitcoin Core's original difficulty adjustment algorithm."
+        },
+        {
+          "q": "When did BCH fix the quadratic sighash problem?",
+          "a": "BCH fixed the quadratic scaling of signature hashing in 2017, and further improved block validation with VM limits. This is the 'worst case block validation time' issue that Bitcoin Core's Great Consensus Cleanup is now trying to address. BCH solved it years ago."
+        },
+        {
+          "q": "Is there a coinbase transaction collision risk in BCH's future?",
+          "a": "There's a theoretical edge case around block height 1,983,702 (~year 2040) where a coinbase transaction could potentially match a pre-BIP34 coinbase from early blocks. Some early miners put garbage in coinbase scripts that happened to look like height numbers. The fix is either implementing BIP30 verification for coinbase transactions, or implementing UTXO commitments which fixes this as a side effect. UTXO commitments are targeted well before 2040."
+        },
+        {
+          "q": "What hashing scheme will UTXO commitments use - MuHash or ECMH?",
+          "a": "Both MuHash and ECMH (elliptic curve multiset hash) are being evaluated. MuHash is faster but larger (~300 bytes), while ECMH is smaller (33 bytes) but slower. BCHN has already added MuHash support. Bitcoin Core's 'assumeutxo' also uses MuHash. The final choice depends on tradeoffs between data size, computational speed, and compatibility with mining pools. Committing to a hash of the set descriptor (rather than the full descriptor) allows using either scheme with minimal coinbase overhead."
+        },
+        {
+          "q": "What is the UTXO commitments implementation roadmap?",
+          "a": "The recommended approach is phased: 1) First, opt-in sharing of UTXO data via P2P protocol extensions (doesn't break nodes not participating), 2) Add ability for nodes to accept a UTXO set and continue from there, 3) Test that EC-multisets or MuHash are optimal and that P2P protocol changes work well, 4) Once proven scalable and useful, activate the consensus rule. This way the feature is immediately useful when activated, not just a theoretical improvement."
+        },
+        {
+          "q": "Are there concerns about larger coinbase transactions with UTXO commitments?",
+          "a": "Yes. Some ASIC miners have issues with larger coinbase transactions - one pool found that coinbases paying more than ~100 addresses (~3.4KB) could crash ASICs. Additionally, the stratum mining protocol sends the base coinbase to miners, so larger coinbases mean more network traffic. These concerns need evaluation. An alternative is adding a second required transaction at position 2 in each block for extended header data, keeping the coinbase small."
+        },
+        {
+          "q": "How far back does the UTXO commitment lag?",
+          "a": "The design for UTXO commitments specifies lagging 100 blocks behind the current block height. This means miners commit to the UTXO set state from 100 blocks ago, which is already known and stable. This approach doesn't break header-first mining since the commitment doesn't need to be continuously updated as new transactions are added to the block template."
+        },
+        {
+          "q": "Should wallets handle duplicate transaction IDs?",
+          "a": "No, for practical purposes you can assume txid is always unique. Even in the rare historical cases of duplicate txids (blocks 91,812 and 91,842), only the most recent transaction's outputs are spendable - the earlier one becomes permanently unspendable. Wallets can safely use txid:index format without worrying about collisions."
+        },
+        {
+          "q": "What's the difference between BIP30 and BIP34?",
+          "a": "BIP30 is the consensus rule that forbids new UTXOs from overwriting existing UTXOs (prevents duplicate txids). BIP34 is the rule requiring block height to be encoded in the coinbase script. Currently BIP34 is enforced but BIP30 is not (for performance reasons), because BIP34 guarantees BIP30 can never be triggered until ~2040. Before then, BIP30 enforcement needs to be re-enabled or UTXO commitments implemented."
+        },
+        {
+          "q": "Does BCHN include a built-in CPU miner?",
+          "a": "No, BCHN removed the CPU miner component. CPU mining hasn't been practical for BCH for many years due to ASIC dominance. If you want to mine BCH, you need external mining software connected to your node (like cgminer or bfgminer) and ASIC hardware, or you can connect to a mining pool."
+        },
+        {
+          "q": "Can I connect my ASICs directly to BCHN for mining?",
+          "a": "No, BCHN doesn't have built-in mining software. You need separate mining pool software (like ckpool) that connects to BCHN via RPC to get block templates, and then your ASICs connect to that pool software. Mining software doesn't replace BCHN - it works together with BCHN. BCHN provides the mempool and block templates; mining software handles the actual hashing."
+        },
+        {
+          "q": "Why are ASICs more energy efficient for mining than CPUs?",
+          "a": "ASICs are purpose-built chips optimized specifically for SHA-256 hashing, while CPUs are general-purpose processors. The efficiency difference is so extreme that if someone used all the world's CPUs for mining, a single modern ASIC could outcompete them. CPU mining will spend far more on electricity than it ever earns in block rewards."
+        },
+        {
+          "q": "Can I run a blockchain explorer on top of BCHN?",
+          "a": "Yes. You can run explorers like bch-rpc-explorer (github.com/sickpig/bch-rpc-explorer/) or custom explorers on top of BCHN. These connect to your node via RPC to display blockchain data in a web interface."
+        },
+        {
+          "q": "How can I verify my node is validating correctly?",
+          "a": "Your node validates every transaction automatically. The logs print transaction count for every block. Compare your node's latest block hash with a public explorer to verify you're on the correct chain. There's no central website listing all nodes - this is by design (decentralization)."
+        },
+        {
+          "q": "What happens if I upgrade BCHN after the May 2025 activation has already occurred?",
+          "a": "If your node was stuck on an old chain (e.g., parked or rejected blocks due to new consensus rules), you'll need to use the 'reconsiderblock' RPC command on the first block after the upgrade activation. This tells your node to re-evaluate that block with the new rules. Simply upgrading the software isn't enough if your node already rejected blocks under old rules."
+        },
+        {
+          "q": "What does 'parked' status mean for a block?",
+          "a": "A 'parked' block is one that your node has temporarily set aside rather than following. This happens when there's a potential chain split or reorg protection kicks in. You can see parked blocks with 'getchaintips' RPC. To follow a parked chain, use 'reconsiderblock' on the parked block's hash. Parking is a safety mechanism to prevent your node from following a malicious chain during attacks."
+        },
+        {
+          "q": "Why does testnet have frequent chain splits?",
+          "a": "Testnet has very low proof-of-work requirements, which means blocks can be mined quickly in bursts. When multiple miners produce blocks at nearly the same time, the network temporarily splits until one chain accumulates more work. This is normal testnet behavior and helps developers test reorg handling. Mainnet's much higher difficulty makes such splits extremely rare."
+        },
+        {
+          "q": "How does CTOR help with transaction lookup performance?",
+          "a": "CTOR (Canonical Transaction Ordering Rule) requires transactions in a block to be sorted by their txid. This enables binary search for transaction lookup instead of linear search. Finding a transaction in a block goes from O(n) to O(log n) complexity. This significantly speeds up block validation and transaction verification, especially as blocks get larger."
+        },
+        {
+          "q": "Why don't cryptocurrency exchanges support CashTokens yet?",
+          "a": "Exchanges typically use the node's built-in wallet (bitcoind) for transaction management via RPC commands. Since BCHN's wallet doesn't have full CashTokens support, exchanges can't easily implement CashTokens trading. They prefer high-level RPC 'sendmoney'-style commands rather than implementing custom transaction authoring for each blockchain. Adding wallet-level CashToken support to BCHN would help exchanges adopt tokens."
+        },
+        {
+          "q": "Do cryptocurrency exchanges use node wallets directly?",
+          "a": "Yes, all major exchanges we know use the bitcoind-style wallet directly. They support 100+ coins and find it easier to send high-level RPC commands to the node wallet than to implement detailed transaction authoring, signing, and coin management for each blockchain they support."
+        },
+        {
+          "q": "What are the 3 parts of the P2S CHIP that affect storage?",
+          "a": "The P2S CHIP has 3 relevant parts: 1) Increase unlocking script (scriptSig) from 1650 bytes to 10KB for standard transactions - doesn't impact UTXO set but allows larger txns/blocks, 2) Max token commitment from 40 to 128 bytes - impacts UTXO database, 3) Locking scripts (outputs) can be any script up to 201 bytes instead of just templates - also impacts UTXO database since unspent outputs stay there."
+        },
+        {
+          "q": "How could BCHN improve block storage for per-transaction pruning?",
+          "a": "Store 1 block per file in a hierarchical directory structure based on block hash (e.g., block 0000...abcdef12 stored at <datadir>/blocks/2/1/f/e/0000...abcdef12.blk). This enables per-transaction level pruning as Satoshi described in section 8 of the whitepaper. Bitcoin Verde already uses this approach. The subdirectories are keyed off the least significant nybbles of the block hash."
+        },
+        {
+          "q": "Is the hierarchical block file approach efficient?",
+          "a": "Yes. Using just 4 hex characters (ff/ff) divides blocks by 256*256=65536 directories. For the next 150 years at normal 10-minute blocks: ~7.9 million blocks / 65536 = only 120 blocks per directory on average. Even with theoretical 10-second Infrastructure Blocks: 7218 blocks per directory. No UNIX filesystem has problems handling less than 10,000 files per directory."
+        },
+        {
+          "q": "What's the computational cost of UTXO commitments per block?",
+          "a": "The computational cost is minimal - just a single elliptic curve addition or subtraction per each UTXO in a block. It costs about as much as verifying that block fees add up correctly. The overhead is negligible compared to other block validation operations."
+        },
+        {
+          "q": "How do major exchanges handle unsupported token deposits?",
+          "a": "Coinbase: Funds are stuck - if the token is added in the future, they will be credited. Kraken: Funds stuck but you can contact support and they might recover them eventually for a fee. This is consistent with how BCH should handle unsupported CashTokens - the tokens just sit there until supported or manually handled."
+        },
+        {
+          "q": "What's the difference between token dust and BCH dust?",
+          "a": "BCH dust can be consolidated without additional complications - just combine small UTXOs into one. Token dust cannot be consolidated without destroying the token, since tokens are tied to specific UTXOs. Determining 'spendable balance above dust needed to keep tokens' adds complexity. Most implementations just show full balance and handle dust preservation automatically in transaction creation."
+        },
+        {
+          "q": "Is there a block height limit for BCH?",
+          "a": "Block heights are stored as int32 (signed 32-bit integer). Overflow would occur at approximately 2.1 billion blocks, which is about 20,000 years away at current 10-minute block times. This will require a hard fork to fix before then - plenty of time to plan."
+        },
+        {
+          "q": "How long should I wait for safe 0-conf without Double-Spend Proofs?",
+          "a": "Wait about 5 seconds for transaction propagation across the network - after this, the probability of a successful double spend drops to nearly zero (assuming no miner-assisted attack, which is expensive). Double-Spend Proofs (DSPs) can reduce this safe waiting time to 2 seconds or less. Fulcrum provides DSP support for Electrum-protocol clients."
+        },
+        {
+          "q": "How does BCHN generate and propagate Double Spend Proofs (DSPs)?",
+          "a": "When any node notices both conflicting transactions, it generates the dsproof and propagates it across the network. Individual nodes need one of the two transactions to validate the proof. The node may flush the proof when a block is mined containing one of the transactions. If a block contains 'the other' transaction, the node may generate a proof if that's the first time it sees both transactions."
+        },
+        {
+          "q": "Why is first-seen rule secure for 0-conf transactions?",
+          "a": "Non-mining nodes don't matter for transaction security - once pools have seen it, it's as good as mined (unless pools themselves are hunting for better deals). If you can identify and query just the TOP10 mining pool nodes, no double spend will make it through."
+        },
+        {
+          "q": "Can 0-conf or DSPs handle DeFi scenarios where multiple valid transactions compete?",
+          "a": "No - this is unsolvable by 0-conf or DSP schemes because there's no 'invalid' transaction when transactions are competing (like in DeFi arbitrage scenarios). There's no 'double spend' - every transaction is valid. Shorter block times can mitigate this by reducing wait time for confirmation."
+        },
+        {
+          "q": "How can I expose limited RPC calls to the public safely?",
+          "a": "Use a thin microservice behind NGINX to filter allowed method names, with NGINX handling rate and bandwidth limiting. Safe methods for public exposure include: getblock, getblockcount, getblockhash, getrawmempool, getrawtransaction, waitfornewblock. Never expose state-modifying commands or wallet calls like listunspent to untrusted parties."
+        },
+        {
+          "q": "Why hasn't BCHN adopted Xthinner or Graphene for block compression?",
+          "a": "Xthinner/Graphene are complex technologies and the benefits compared to BCHN's current Compact Blocks implementation would be minimal - just reducing the existing ~3% overhead further. When Bitcoin Unlimited donated Xthinner code to Bitcoin Classic, it caused remote attacks and crashes. Someone would need to rewrite it with security in mind. The current system works well enough."
+        },
+        {
+          "q": "How does BCHN's mempool eviction actually work?",
+          "a": "When the mempool approaches its limit (~300MB default), transactions aren't evicted randomly. The minimum fee bar rises until enough low-fee transactions are dropped. When the situation normalizes, the fee bar drops again. This fee-based eviction strategy was inherited from Bitcoin Core around 2015, when attackers discovered they could crash nodes by flooding them with transactions until OS killed the process due to memory exhaustion."
+        },
+        {
+          "q": "Why is mempool coherency important for the BCH network?",
+          "a": "You want everybody's mempool to be as similar as possible for best Compact Block performance. If nodes have different mempool sizes and policies, they'll drop different sets of transactions when full, leading to inconsistent relay policies. This causes bad UX where users think they paid but the merchant's node never saw the transaction, and increases missing transactions during block propagation."
+        },
+        {
+          "q": "Is BCHN's default mempool size appropriate for modern hardware?",
+          "a": "No - the ~300MB default was set when average machines had 1GB RAM. Now average PCs have 8-16GB RAM, with node operators often having 64GB+. The baseline should be raised significantly. However, simply allowing variable mempool sizes creates coherency problems - ideally it should scale with ABLA (block size limit), like 30 blocks worth of transactions."
+        },
+        {
+          "q": "How should mempool size be determined going forward?",
+          "a": "The suggestion is to link mempool size to the ABLA (Adaptive Block Limit Algorithm) cap - for example, 100x the current block size limit. This would be a flat number that can be updated with each network upgrade. Currently ~3GB would be appropriate. Dynamic sizing based on system RAM creates mempool incoherence problems because different nodes would drop different transactions."
+        },
+        {
+          "q": "Is there a single network-wide mempool?",
+          "a": "No - there is no 'the' mempool. Each node has its own mempool. People often think of the mempool as shared cloud storage, but it's not. Mempool 'coherence' (keeping all nodes' mempools similar) is a goal that's impossible to perfectly achieve anyway, though beneficial for Compact Block performance."
+        },
+        {
+          "q": "Which nodes' mempools matter most for transaction confirmation?",
+          "a": "Only nodes close to miners really matter. If explorers have huge mempools but miner-connected nodes have tiny ones, you'd see your transaction on explorers but it wouldn't get mined. The opposite could also happen - transaction doesn't show on explorers but gets mined because it reached miners through a different path."
+        },
+        {
+          "q": "What mempool size formula has BCH community consensus?",
+          "a": "Around 72-144 times the current blocksize limit: 72x gives ~2.3GB now (half a day of blocks), 144x gives ~4.6GB (full day of blocks). This scales automatically with ABLA. Combined with a startup warning if system RAM is too small, this should serve the network well without manual updates."
+        },
+        {
+          "q": "What is the advantage of memory-mapped files for blockchain data?",
+          "a": "Memory-mapped files aren't advantageous because of their swapping property (you get file cache for free with regular files anyway). The main advantage is reducing double and triple buffer copying in your app - less overhead to access data, which may pay off for CPU-intensive loads. The kernel manages flushing unused pages automatically."
+        },
+        {
+          "q": "Should BCHN allocate dedicated RAM for the UTXO set?",
+          "a": "Yes. RAM is cheap (<$2/GB for DDR4). For mining pools and solo miners (the only nodes that affect network capacity under load), the cost of RAM is trivial compared to electricity for hashing. Allocating dedicated memory for the entire UTXO dataset plus mempool makes sense. BCHN should assume it runs on a dedicated server."
+        },
+        {
+          "q": "Where do most BCH nodes run - home hardware or VPS?",
+          "a": "After Tor nodes, VPS nodes dominate the network. Anyone serious about running a pool should have no problem getting a 1GB/s VPS to relay blocks. Mining nodes generally shouldn't run on Tor due to increased orphan risk from latency, though anonymous mining is possible at a premium in increased orphan rates."
+        },
+        {
+          "q": "What hardware is needed to run a local BCH mining pool?",
+          "a": "A basic setup with 16GB RAM and 200Mbps static IP can work, but a dedicated server or VPS is recommended over consumer hardware like an Optiplex. Internet latency matters more than bandwidth for mining. Use mining calculators like coinwarz.com to estimate how long it takes to find a block with your hashrate. For serious pools, use proper datacenter hosting with backup power."
+        },
+        {
+          "q": "What is pool solo mining and what are its benefits?",
+          "a": "Pool solo mining allows multiple hashers to share a fast computer in a data center with low-latency internet connection. You receive the full block reward for blocks you find (minus a small fee to the node operator). It avoids the overhead of financial management by pool operators, which can have both technical and legal complications. While it doesn't reduce mining variance, it may improve profitability through lower orphan rates. Additional benefits include avoiding high pool overhead fees meant to cover share withholding attacks, and potentially avoiding government regulation as a money transmitter."
+        },
+        {
+          "q": "How much does luck affect solo mining profitability?",
+          "a": "Luck is critical in solo mining - you could find 3 blocks in the expected time for 1 if lucky, or the inverse if unlucky. Experienced miners report blocks arriving at 1.5x-2x or even 6x the expected time. Solo mining works if you have enough capital (hardware and electricity) that variance doesn't matter, or if you're lucky. The pain of unlucky streaks is very real."
+        },
+        {
+          "q": "How does block size affect Compact Blocks efficiency?",
+          "a": "On chains with 1MB blocks (like BTC), Compact Blocks loses its benefit when about 10% of transactions aren't in the public mempool. With larger blocks (like BCH's 32MB), even if 80% of transactions are missing, Compact Blocks remains beneficial. Larger block limits make Compact Blocks more resilient to mempool mismatches."
+        },
+        {
+          "q": "Will miners reorg each other's blocks to steal fees when block subsidy goes to zero?",
+          "a": "This disaster scenario is unlikely. Miners can't spend stolen coins immediately due to the 100-block maturity requirement for coinbase outputs, so their incentive is for the chain to grow rather than be stuck at the same height. No single pool can afford to throw money away on failed reorg attempts - it only works with >=51% hashrate. For BCH, the goal is many low-fee transactions at constant rates, making fee sniping economically pointless. It makes no economic sense to reorg in order to steal."
+        },
+        {
+          "q": "How do faster blocks affect mining decentralization?",
+          "a": "1-minute blocks mean 10x lower difficulty per block, making it 10x cheaper to start a viable solo mining operation. Due to non-linear wealth distribution (many more people have modest resources than large ones), a 10x reduction in solo mining cost may attract far more than 10x additional solo miners. Solo miners find blocks more frequently with faster block times, reducing painful unlucky streaks. However, this effect is relative - as price rises, hashpower follows, eventually requiring similar relative investment to mine solo."
+        },
+        {
+          "q": "Do 1-minute blocks increase orphan rates?",
+          "a": "Not significantly. Smaller blocks take proportionally less time to verify - with parallel processing it's O(log n) for the Merkle root. Transmission delay is physical latency plus data divided by rate - smaller block times mean proportionally smaller blocks, keeping the same effect on orphan rate. Speed-of-light delay is <0.1 second for terrestrial propagation, insignificant for 1-minute blocks. The only remaining concern is header sizes, but that's been addressed by hardware improvements."
+        },
+        {
+          "q": "What are the requirements for changing BCH block time while maintaining halving alignment?",
+          "a": "The new block time must be a number made of factors of 600 (e.g., 1, 2, 3, 5, 6, 10 minutes), and the change must be done at a 'tick' that's divisible by both the old and new interval durations. This ensures all dependent functionality (like the halving schedule) aligns nicely with the original schedule."
+        },
+        {
+          "q": "What limits the maximum block size in the P2P protocol?",
+          "a": "The P2P protocol currently limits block size to 2GB because the message size field uses a 32-bit integer. A 10x increase in block frequency (e.g., 1-minute blocks) would allow up to 20GB every 10 minutes rather than 2GB, effectively kicking the can down the road before a P2P protocol upgrade is needed. Upgrading to a 64-bit size field is relatively straightforward and can be done with long deprecation periods."
+        },
+        {
+          "q": "Does block validation block propagation?",
+          "a": "Yes, in the current architecture inherited from Bitcoin Core, if even just 1 transaction is missing from the mempool, validation will block propagation until that transaction is fetched and verified. This doesn't have to be the case - nodes could verify header and merkle root on the hot path and do the rest in parallel with propagation, but that's not how the current implementation works."
+        },
+        {
+          "q": "Why don't cryptocurrency exchanges support CashTokens yet?",
+          "a": "Having the BCHN wallet handle CashTokens is likely a prerequisite for centralized exchanges to implement CashToken support. However, wallet support alone won't cause exchanges to automatically list tokens. Exchanges typically charge listing fees or require sufficient volume/liquidity, and they only list tokens that pay or qualify. The RPC already provides everything needed for block explorers - that's not an obstacle. For exchange integration, the token projects themselves (like MUSD) would likely need to contribute to getting wallet support implemented."
+        },
+        {
+          "q": "How many nodes are actually close to mining hashpower?",
+          "a": "Research shows that even with more than 10,000 BTC nodes, there's only a small set of approximately 100 nodes that are really close to hashpower. To minimize orphan risk, a new miner would want to optimize their connections to announce blocks to this cluster using the shortest path available. This finding was documented in the Coinscope paper and has been recently replicated."
+        },
+        {
+          "q": "Is propagating blocks before full validation a DoS vector?",
+          "a": "Not really, because nodes would still verify the header chain, header PoW, and block merkle root before propagating. Producing a valid header just to spam would cost significant proof-of-work. The block creator won't send bogus data because they'd lose their PoW reward if the block doesn't mature. There's still some delay between receive and send to hash all transactions and verify the merkle root, but that's much faster than full validation."
+        },
+        {
+          "q": "How does Compact Blocks handle missing transactions during block announcement?",
+          "a": "When a node receives a Compact Block (header + short txids) and some transactions are missing from its mempool, it cannot immediately verify the merkle root because it only has short txids. The receiver must first get at least the full txids of missing transactions, then verify header PoW and merkle root, and only then forward the block to other peers. The rest of validation can proceed in parallel with propagation. If all transactions are already in the mempool, verification is just a matter of hashing and can be very fast."
+        },
+        {
+          "q": "How do I set up solo mining with BCHN?",
+          "a": "Solo mining BCH with BCHN is essentially the same as BTC. You need: 1) ASIC miners (like Antminer series) designed for SHA-256 algorithm - CPUs won't work, 2) Mining software like CGMiner or BFGMiner, 3) A stratum proxy to connect ASICs to BCHN since ASICs can't speak RPC directly - they need the stratum protocol. BFGMiner can act as this proxy. Note: Small-scale solo mining is rarely profitable without major investment or cheap electricity due to intense competition from large mining operations."
+        },
+        {
+          "q": "Does BCHN have built-in Stratum support for mining?",
+          "a": "No, BCHN does not have a built-in Stratum module. You need a stratum proxy to connect mining hardware. ASICs can't handle RPC directly - they only understand the simpler Stratum protocol. Software like BFGMiner can bridge between your ASIC's Stratum connection and BCHN's RPC interface. This is similar to Bitcoin Core's setup."
+        },
+        {
+          "q": "Can I run BCHN off an SD card on Raspberry Pi?",
+          "a": "Not recommended. SD cards are slow and unreliable for BCHN. They may not survive long under the constant read/write operations of a blockchain node. Even with Pi5's faster bus, SD cards are not suitable for running a node. Use NVMe-connected SSD on Pi5 for best performance and reliability."
+        },
+        {
+          "q": "What does 'Potential stale tip detected' mean in BCHN logs?",
+          "a": "This message appears when no new block has been received for more than 30 minutes (~2975 seconds). It's caused by normal mining variance - sometimes blocks just take longer to find. The node responds by trying additional outbound peers. This is not a problem with your node - it's just informing you that the chain tip hasn't been updated recently, which occasionally happens naturally."
+        },
+        {
+          "q": "Why is fast block propagation important for miners?",
+          "a": "Fast propagation is crucial in both directions. When you find a block, you want maximum propagation to other miners so they start building on your block instead of potentially replacing it. In reverse, you want to see other miners' blocks ASAP so you don't waste hashpower trying to solve a height someone already got. Knowing the block header quickly is especially important - see 'header first mining'."
+        },
+        {
+          "q": "Why can't I connect my ASIC directly to BCHN?",
+          "a": "ASICs (like WhatsMiner or Antminer) only speak the Stratum protocol, while BCHN provides an RPC interface. You need a stratum server in between. The architecture is: ASIC <-> Stratum Server <-> BCHN Node. The stratum server and pool software can be a single program. Software like BFGMiner can bridge this gap for solo mining setups."
+        },
+        {
+          "q": "How long would it take to solo mine a BCH block with 90 TH/s?",
+          "a": "At current difficulty (approximately 728 billion), with 90 TH/s you'd statistically need about 402 days to hit a block. However, mining is probabilistic - someone hit a block with just 4 TH/s. The math gives expected time, but actual results vary wildly due to the nature of finding valid hashes."
+        },
+        {
+          "q": "What are the alternatives to the Bitcoin Unlimited block explorer?",
+          "a": "If explorer.bitcoinunlimited.info is down, alternatives include explorer.bch.ninja (a fork of the same codebase) and explorer.melroy.org (a BCH-adapted mempool.space fork). These provide similar block exploration features for Bitcoin Cash."
+        },
+        {
+          "q": "Why does getBlockHash return 500 errors near the tip?",
+          "a": "If getBlockHash returns 500 errors for recent blocks but works for older blocks, you're likely requesting a block height that doesn't exist yet. There may be a race condition in your code where you're asking for the next block before it's mined. Consider using ZMQ notifications instead of polling RPC for tip updates - it's more reliable for detecting new blocks."
+        },
+        {
+          "q": "Can I run asicseer-pool on Windows?",
+          "a": "No, asicseer-pool only runs on POSIX-compliant systems (Linux, macOS, FreeBSD, NetBSD). It cannot run natively on Windows - only through WSL (Windows Subsystem for Linux). For mining setups, especially on devices like Raspberry Pi, it's strongly recommended to use Linux rather than Windows for both performance and compatibility reasons."
+        },
+        {
+          "q": "Is Raspberry Pi 5 suitable for BCHN and solo mining?",
+          "a": "Pi5 with 8GB RAM works well for running BCHN and mining pool software. Use NVMe via PCIe for reliable storage - Pi4 USB3 connections can be unreliable due to power draw issues. BCHN uses ~925MB RAM on Pi5, pool software adds ~1GB more. For serious mining operations, consider a mini PC for better reliability. asicseer-pool runs efficiently on ARM but needs to be compiled for the ARM architecture."
+        },
+        {
+          "q": "What storage issues should I watch for with BCHN?",
+          "a": "The blockchain data is write-once and not problematic, but the UTXO set requires key-value lookups that cause write amplification and NAND flash wear. BCH's current traffic level means this isn't urgent, but with higher load it becomes significant. SD cards are less reliable than NVMe SSDs for long-term node operation - consider using quality storage for production nodes."
+        },
+        {
+          "q": "Where can I discuss asicseer-pool setup?",
+          "a": "Join the dedicated Telegram channel at t.me/asicseerpool for asicseer-pool discussions, setup help, and community support for solo mining with BCHN."
+        }
+      ]
+    },
+    {
+      "name": "Network & Peers",
+      "count": 26,
+      "faqs": [
+        {
+          "q": "Should I use Raspberry Pi 4 or Pi 5 for running a BCHN node?",
+          "a": "Raspberry Pi 5 is strongly recommended over Pi 4. The Pi 4 has reliability issues with SSDs over USB - the drives may draw more power than USB spec allows, causing crashes and 'read only filesystem' errors. Pi 5 has native NVMe support over PCIe which is much more reliable. The Argon Neo NVMe case with a WD 1TB NVMe SSD is a good combination that can reliably run both BCHN and Fulcrum."
+        },
+        {
+          "q": "What SSD should I use with Raspberry Pi for BCHN?",
+          "a": "For Pi 4: Samsung 860 EVO or Crucial MX500 (SATA-based, good over USB 3.0). For Pi 5: Use NVMe drives over PCIe - Samsung 970 EVO Plus or WD Black SN850. Pi 5 with an NVMe Base PCIe extension board accepting M-key NVMe SSDs (2230 to 2280) is the best setup. No need for expensive high-speed NVMe drives on Pi - the single PCIe lane limits bandwidth to ~900 MB/s anyway."
+        },
+        {
+          "q": "How do I clear my node's mempool to remove stale transactions?",
+          "a": "There's no direct RPC command to clear the entire mempool. If you have stale transactions that weren't properly broadcast due to a crash or connectivity issue, you can stop the node, delete the mempool.dat file from your data directory, and restart. This forces the node to rebuild its mempool from the network. Note that BCHN doesn't automatically rebroadcast transactions - that's the wallet's responsibility."
+        },
+        {
+          "q": "What port does BCH mainnet use?",
+          "a": "BCH mainnet uses port 8333, the same port as BTC mainnet. This is the default port for P2P connections."
+        },
+        {
+          "q": "What is port 18333 used for?",
+          "a": "Port 18333 is used for testnet. If you're only running a mainnet node, you only need to forward port 8333. You don't need to map port 18333 unless you're running a testnet node."
+        },
+        {
+          "q": "Is Ubuntu 18 still supported for BCHN?",
+          "a": "Ubuntu 18 support is being dropped. It uses ancient libc and an ancient compiler at this point, which is holding back development. Ubuntu 18 is also EOL (end of life). Consider upgrading to Ubuntu 20 or newer, or use Debian 12 which builds BCHN seamlessly."
+        },
+        {
+          "q": "How does BCHN handle orphan transactions?",
+          "a": "When BCHN receives an orphan transaction (one with missing parent inputs), it asks the peer that sent it for the missing parent, but only once. If that fails, it gives up. This works fine on BCH because mempools typically clear every ~10 minutes due to low congestion, and you usually hear about parents through normal broadcast propagation. Bitcoin Core recently implemented asking multiple peers for missing parents, which BCHN may backport."
+        },
+        {
+          "q": "Why am I not getting inbound connections even after forwarding ports?",
+          "a": "Your ISP might be using CG-NAT (Carrier-Grade NAT) which prevents port forwarding from working. Check your public IP at whatsmyip.org and see if it's in the 100.64.0.0/10 range. If your IP is in this range, your ISP is using CG-NAT and you won't be able to receive inbound connections without contacting them for a real public IP or using a VPN/tunnel service."
+        },
+        {
+          "q": "How do I create a new wallet in BCHN if I forgot my passphrase?",
+          "a": "Stop BCHN, move or rename the wallet.dat file from your data directory (don't delete it permanently - rename it in case you remember the passphrase later), then restart BCHN. It will create a new wallet. The wallet.dat file is located in the BCHN data directory (e.g., ~/Library/Application Support/Bitcoin/ on macOS, ~/.bitcoin/ on Linux)."
+        },
+        {
+          "q": "Is the Ubuntu PPA version of BCHN up to date?",
+          "a": "Yes, the Ubuntu PPA repository has the latest version of BCHN (28.0.1) for all LTS versions of Ubuntu (bionic, focal, jammy, noble). Make sure to upgrade your BCHN node before network upgrades to stay in consensus. Check launchpad.net/~bitcoin-cash-node/+archive/ubuntu/ppa for current versions."
+        },
+        {
+          "q": "Why does macOS say BCHN crashed when I quit it normally?",
+          "a": "This is likely a Qt framework issue, not BCHN-specific. The same behavior is seen with Electron Cash on macOS. The node shuts down successfully, but macOS reports a crash due to how Qt handles the shutdown process. Try running from the command line to see what it says upon shutdown. It's generally a benign cosmetic issue."
+        },
+        {
+          "q": "What ports does UPnP auto-map for BCHN?",
+          "a": "UPnP only maps the one port used for the P2P network (8333 for mainnet, 18333 for testnet). Your router would show what it actually forwarded. Since there's only one port used for the P2P network, only one is requested at any time."
+        },
+        {
+          "q": "Can I manually add inbound peers to my node?",
+          "a": "Inbound connections are initiated by remote peers, so you'd need to contact the remote operator to have them connect to you. You can add outbound connections manually from the CLI using the addnode RPC command."
+        },
+        {
+          "q": "How should BCHN wallet handle CashTokens for backward compatibility?",
+          "a": "Recommended approach: 1) Track ALL tokens at database level (wallet must understand the structure), 2) Hide tokens from standard RPC output by default ('don't break userspace'), 3) When spending UTXOs with unsupported tokens, automatically send tokens back to same address, 4) Create separate commands like 'command_with_tokens' for token operations. This ensures legacy exchange software continues working unchanged while enabling token support for those who want it."
+        },
+        {
+          "q": "What levels of CashToken support could BCHN wallet implement?",
+          "a": "Four tiers discussed: 1) Status quo - pure BCH only, anything with tokens is ignored, 2) Only whitelisted token UTXOs tracked, all others entirely ignored - this is what CEXs would want, 3) Everything tracked but only whitelisted tokens shown and spendable - declutters UI while allowing BCH extraction from airdropped tokens, 4) Full token support. Start with minimum viable product and add more levels later."
+        },
+        {
+          "q": "How quickly do BCH transactions propagate across the network?",
+          "a": "Research by Peter Rizun (Bitcoin Unlimited, 2018) showed transaction propagation follows a steep curve: 50% of nodes know practically instantly, the vast majority in 3 seconds, laggards in 5 seconds. Network connectivity has improved vastly since 2018, making times even shorter - in practice, 2 seconds or less now in some locations."
+        },
+        {
+          "q": "Why shouldn't I expose BCHN's RPC interface directly to the public internet?",
+          "a": "The RPC interface is not designed for public exposure - it has no rate limiting or protections against abuse. Heavy calls like listunspent can cause significant CPU burden. You could face excessive bandwidth costs from abuse. Use Fulcrum instead (which provides rate limiting), or put NGINX with rate limiting in front of a filtered RPC proxy."
+        },
+        {
+          "q": "Should wallets run as part of the same program as a BCHN node?",
+          "a": "No - it's better for security, reliability and availability to run the wallet as a separate process, ideally on a separate computer. This isn't new - it goes back to early networking days in the 1970s. Satoshi included a wallet in his proof of concept software, but for production architecture, separating wallet from node is the recommended approach for building large-scale systems."
+        },
+        {
+          "q": "Should BCHN add CashTokens support to existing RPC commands or create new ones?",
+          "a": "The recommended approach is to mostly replicate commands (create new token-specific RPCs) rather than modifying existing commands like sendtoaddress. This preserves behavior of existing commands and prevents breaking existing setups. Keeping old RPC calls unchanged is important for exchange compatibility. See GitLab issue #534 for the detailed proposal."
+        },
+        {
+          "q": "How do I know if my node port is properly open to accept connections?",
+          "a": "Check the getnetworkinfo RPC output or your node's connection display. If you see 'In: 2' (or any number greater than 0 for inbound connections), your port is successfully open and accepting incoming connections from other nodes."
+        },
+        {
+          "q": "Is there a CashTokens testnet faucet?",
+          "a": "There's no dedicated CashTokens faucet, but you can get testnet BCH from tbch.googol.cash and then mint your own tokens using Electron Cash or any other wallet that supports CashTokens. Testnet4 is recommended for CashTokens development testing."
+        },
+        {
+          "q": "What DNS seeds can I use if dnsseed.electroncash.de is down?",
+          "a": "For P2P network peers, use seed.flowee.org. For Fulcrum (Electrum) servers with valid certificates, use ec-seed.flowee.cash. The Fulcrum seed is a DNS entry for known Fulcrum servers with non-self-signed certificates, making it easier to avoid hardcoding server addresses in wallet clients."
+        },
+        {
+          "q": "What macOS version does BCHN require?",
+          "a": "BCHN v28 supports older macOS versions, but starting with v29 (the May 2026 upgrade release), BCHN will require macOS Sequoia (macOS 15) or later. Older macOS versions will no longer be supported."
+        },
+        {
+          "q": "What is the BCHN node expiration mechanism?",
+          "a": "BCHN nodes have a built-in expiration tied to future upgrades. For v28, the node expires at the May 2027 upgrade date - after which RPC is shut off unless you pass -expire=0. This mechanism encourages users to upgrade before major network changes. The expiration is always set relative to the next-next upgrade to give users a full year to update."
+        },
+        {
+          "q": "What's an easy way to run BCHN for non-technical users?",
+          "a": "Start9OS provides a user-friendly way to run BCHN with a nice UI. Fulcrum 2.0 with full CashTokens support is available there, with BCHN as a dependency. Once set up, it's plug-and-play. The BCHN interface on Start9 is being actively refined for better user experience."
+        },
+        {
+          "q": "Why is Linux preferred over Windows for running BCHN?",
+          "a": "Windows is not designed for 24/7 server operation. System updates can corrupt your node or require reboots at inconvenient times. Linux provides better uptime and reliability for node operation. Users who switch from Windows to Linux for running nodes typically report most problems disappear."
+        }
+      ]
+    },
+    {
+      "name": "RPC & API",
+      "count": 8,
+      "faqs": [
+        {
+          "q": "Does BCHN maintain backwards compatibility with RPC calls?",
+          "a": "BCHN tries to maintain better backwards compatibility than Bitcoin Core, which is notorious for removing RPC calls and breaking older software. The philosophy is that deprecated calls can be hidden from help output but shouldn't be removed entirely, as removal breaks existing tooling that depends on those calls."
+        },
+        {
+          "q": "What is the history of the minimum transaction size rule on BCH?",
+          "a": "ABC originally required minimum 100-byte transactions to prevent merkle tree attacks using 64-byte transactions. In 2023, BCH changed this to require minimum 65 bytes. While technically only 64 bytes needed to be disallowed, >=65 was chosen to avoid confusion. This prevents merkle tree attacks that could exploit 64-byte transaction collisions with internal merkle nodes."
+        },
+        {
+          "q": "Why does BCHN still use LevelDB despite its known issues?",
+          "a": "LevelDB is widely known to have problems, especially with large UTXO sets, but it's 'just good enough' that replacing it is considered too risky given Bitcoin's history with database changes. Changing the database is technically challenging and could introduce consensus bugs. A database migration CHIP has been proposed for future implementation, but for now LevelDB remains the default."
+        },
+        {
+          "q": "Should I switch from bitcoind to bitcoin-qt (GUI) for running a node?",
+          "a": "No. If you're already using command line (bitcoind), you should NOT need to switch to GUI. Keep using bitcoind. Most of the nodes used in exchanges and pools are bitcoind."
+        },
+        {
+          "q": "Should the BCHN wallet track all CashTokens or just specific ones?",
+          "a": "The wallet should track ALL tokens at the database level. Tokens can be filtered on GUI/RPC levels, but ignoring tokens at the database level would risk burning them accidentally or ignoring valid UTXOs sent to the wallet. You would never ignore any other UTXO, so why ignore tokens?"
+        },
+        {
+          "q": "Can legacy software accidentally spend CashTokens UTXOs?",
+          "a": "No - this was a core design feature of CashTokens. Any external program not set up to spend CashToken UTXOs cannot spend them 'accidentally'. However, showing legacy software CashToken outputs it cannot spend could break the program in other ways. BCHN already has an 'includeTokens' parameter that defaults to false in commands like listunspent to prevent this."
+        },
+        {
+          "q": "Is there a 'from address' concept in Bitcoin/BCH transactions?",
+          "a": "No, there is no such thing as a 'from' address in Bitcoin. While sending back to the 'source address' technically works, this has been considered bad practice since SatoshiDice days. For custodial wallet users, the 'source' might be an exchange hot wallet, not the user's address. Never assume you can return funds to where they came from."
+        },
+        {
+          "q": "How should BCHN handle BCH on token UTXOs with includetokens=true?",
+          "a": "Show BCH from all UTXOs regardless of attached tokens. When any tokens are spent for any reason, automatically extract above-dust sats to a non-token change output. This is similar to how Electron Cash handles it. The includetokens=false behavior must NEVER change - this is the critical backward compatibility rule."
+        }
+      ]
+    },
+    {
+      "name": "Performance & Hardware",
+      "count": 4,
+      "faqs": [
+        {
+          "q": "Can Xthinner code quality be trusted?",
+          "a": "The existing Xthinner code has reputation problems. When Bitcoin Unlimited donated their Xthinner code to Bitcoin Classic, it caused remote attacks and crashes. Someone would need to reimplement it from the specification with security in mind. The potential performance gains don't justify the definite costs of implementation and deployment risk at current usage levels."
+        },
+        {
+          "q": "What is the real purpose of swap on modern Linux systems?",
+          "a": "Swap is for stuff in RAM that you're not actually using - you move it out of sight and it likely never returns to RAM. For over a decade, swap hasn't been about allowing more memory for operations (the OOM killer prevents that). Swap and swappiness is about increasing system performance by removing unused data to make room for more valuable disk caches."
+        },
+        {
+          "q": "What is BCHN's position on AI-generated code for wallet features?",
+          "a": "BCHN maintainers are not fans of using AI for production wallet code. Wallet code is delicate - the programmer must fully understand the system. AI creates new classes of risks because it can hallucinate or lie and introduce subtle bugs. The preference is for developers who fully own and understand the subsystem including the nuances of the language."
+        },
+        {
+          "q": "Where can I discuss Fulcrum server operation and development?",
+          "a": "For Fulcrum-specific operator and developer discussions, join the Telegram group at t.me/electroncashserver. This is the dedicated channel for Fulcrum questions, packaging help, and technical discussions."
+        }
+      ]
+    },
+    {
+      "name": "Upgrades & Updates",
+      "count": 9,
+      "faqs": [
+        {
+          "q": "What is BCHC and how does it relate to BCHN?",
+          "a": "BCHC is essentially the same as BCHN but with the Chronik indexer integrated. It's a fork of BCHN that includes Chronik for enhanced indexing capabilities. Note that BCHC may be a bit behind the main BCHN version in terms of updates."
+        },
+        {
+          "q": "I'm getting a GMP version error when building BCHN on RHEL-based systems. How do I fix it?",
+          "a": "This is a known issue with the cmake FindGMP module on RHEL-like systems (Alma Linux 8/9). The build system has trouble parsing GMP wrapper files in /usr/include. Workaround: delete the GMP wrapper files and rename the architecture-specific files to the wrapper filenames. The issue is logged in GitLab. Alternatively, use Debian 12 which builds seamlessly."
+        },
+        {
+          "q": "Why does BCHN-QT show a warning about 'unknown/unstable version' when I built from source?",
+          "a": "If you build from git master branch, you get the latest development version which shows this warning. Development builds between releases are labeled with version numbers like 28.0.2 even before 28.0.2 is officially released. If you want a specific stable release (like v28.0.1), run 'git checkout v28.0.1' before building to get that exact tagged release."
+        },
+        {
+          "q": "Should I use git master or a tagged release for building BCHN?",
+          "a": "For production use, checkout a specific release tag like 'git checkout v28.0.1' before building. Building from master gives you the latest development code which may have unreleased features or changes. The release tags correspond to tested, stable versions."
+        },
+        {
+          "q": "What features are in the May 2026 BCH upgrade?",
+          "a": "The May 2026 upgrade (Upgrade 12) includes: Bitwise opcodes, native Functions for BCH Script, Loops for iteration in scripts, and Pay-to-Script (P2S). Preview builds are available for testing on chipnet before mainnet activation. Chipnet activates these features first, allowing developers to test before mainnet goes live."
+        },
+        {
+          "q": "How are BCH upgrades named internally in BCHN?",
+          "a": "BCHN is transitioning from numbered upgrades (Upgrade 11, Upgrade 12) to year-based naming (upgrade2026, upgrade2027). This avoids issues with 'unlucky' numbers (13 in Western culture, 14 in Chinese culture) and makes the upgrade schedule clearer since BCH has annual consensus upgrades."
+        },
+        {
+          "q": "What Debian version is required for BCHN binaries?",
+          "a": "BCHN binaries require Debian 12 or newer due to GLIBC 2.32/2.33/2.34 dependencies. If you get GLIBC version errors on Debian 11 (e.g., 'GLIBC_2.33 not found'), upgrade to Debian 12 to resolve them. Alternatively, you can manually build BCHN from source if you have a C++20 compiler available."
+        },
+        {
+          "q": "When did May 2026 upgrade features activate on chipnet?",
+          "a": "The May 2026 upgrade features (Bitwise opcodes, Functions, Loops, P2S) activated on chipnet in mid-November 2025 when MTP timestamp 1763208000 was reached. Chipnet activates features months before mainnet, giving developers time to test new Script capabilities before the May 2026 mainnet activation."
+        },
+        {
+          "q": "When will BCHN v29 be released?",
+          "a": "BCHN v29 (the May 2026 upgrade release) is targeted for release before the end of 2025, giving node operators several months to upgrade before the May 2026 mainnet activation."
+        }
+      ]
+    },
+    {
+      "name": "Troubleshooting",
+      "count": 3,
+      "faqs": [
+        {
+          "q": "What is the most commonly used operating system for running BCHN?",
+          "a": "Probably Windows or Debian-based Linux distributions. BCHN builds most seamlessly on Debian 12. RHEL-based distributions may have build issues with certain dependencies."
+        },
+        {
+          "q": "Can changing the database cause a hard fork?",
+          "a": "No, upgrading the database is not a hard fork. A new database can be designed and deployed permissionlessly. If the DB is bug-free, switching the DB can't result in a fork. As evidence, BCHN uses LevelDB, but Verde and Flowee use different databases - this has never caused consensus issues between implementations."
+        },
+        {
+          "q": "Does BCH need pre-consensus for simple payments?",
+          "a": "No. For the majority of BCH transactions (simple payments by honest users), the first-seen rule coupled with Double Spend Proofs is adequate. Pre-consensus may only be needed for high-value DeFi transactions with intentional race conditions between honest players competing for the same UTXO. The 'zero reward problem' is not immediately pressing and may never materialize if transaction volume grows. Off-chain mechanisms appropriate to specific applications may serve better than a one-size-fits-all pre-consensus protocol."
+        }
+      ]
+    },
+    {
+      "name": "General BCHN",
+      "count": 10,
+      "faqs": [
+        {
+          "q": "When did BCHN switch to CMake from autotools?",
+          "a": "BCHN switched to CMake around 2019, approximately 6 years before Bitcoin Core began their CMake transition. The autotools build system was considered difficult and cumbersome to work with compared to CMake."
+        },
+        {
+          "q": "Are there official BCHN ARM64 Docker images?",
+          "a": "The official BCHN Docker images (zquestz/bitcoin-cash-node) are built via CI. ARM64 builds have been discussed and may be added in the future. For now, you may need to build your own ARM64 images or use the native ARM64 binaries directly."
+        },
+        {
+          "q": "Should BCHN add more built-in features?",
+          "a": "BCHN developers prefer to remove features rather than add them. The philosophy is to keep BCHN focused on core node functionality. People can build additional features on top as separate projects. Keeping BCHN minimal makes it more maintainable and reduces attack surface."
+        },
+        {
+          "q": "What other BCH node implementations exist besides BCHN?",
+          "a": "Other implementations include: Knuth, Bitcoin Unlimited (BU), BCHC (BCHN with Chronik), and Bitcoin Verde. These are all valid node implementations that follow the same consensus rules."
+        },
+        {
+          "q": "Why is CashTokens easier to track than SLP was?",
+          "a": "SLP required tracking a DAG (directed acyclic graph) on top of UTXOs, plus running SLPDB as an inefficient indexing layer. CashTokens don't require any DAG tracking - the token data is directly embedded in the UTXO itself, making it much more manageable to track."
+        },
+        {
+          "q": "Do UTXO commitments need to be consensus-enforced?",
+          "a": "There's debate on this. Some argue per-implementation commitments (like Verde's approach) are sufficient since you always have some root of trust anyway. Others argue there's no real cost to having consensus-level commitment, so why settle for trusted when trustless is achievable?"
+        },
+        {
+          "q": "How does a typical cryptocurrency exchange handle deposits?",
+          "a": "Standard exchange workflow: 1) Address generated for each user (all may be in single wallet file), 2) When coins hit an address, wallet notifies upper layer and balance is registered with exchange, 3) Coins forwarded to central management hot wallet, 4) Withdrawals handled from hot wallet in conjunction with balance database. Exchanges must manage balances internally since trades happen off-chain."
+        },
+        {
+          "q": "Is BCHN available in Umbrel?",
+          "a": "No, BCHN is not available in the Umbrel app store. You need to install it manually from bitcoincashnode.org. If you're using Umbrel on a Linux system, ensure the binary path matches and it should work. You can also symlink to /opt or another location. Umbrel is based on Debian."
+        },
+        {
+          "q": "Is BCHN available on StartOS?",
+          "a": "No, BCHN is not currently packaged for StartOS (a popular sovereign node operating system). However, the process to package it is straightforward - clone the Bitcoin Core package and replace the internals with BCHN. The StartOS team has indicated they're open to having Bitcoin Cash applications. Once a working .s9pk package exists, it can be submitted to the StartOS community registry."
+        },
+        {
+          "q": "How do I set up a Raspberry Pi to run BCHN remotely?",
+          "a": "Use the Raspberry Pi Imager to load the OS image onto an SD card with SSH enabled. Then plug the SD card into the Pi - it will boot and allow remote access via SSH. You can then manage everything from your laptop/desktop without needing to plug keyboard, mouse, or screen into the Pi. This headless setup is the standard approach for running Pi-based nodes."
+        }
+      ]
+    }
+  ]
+}

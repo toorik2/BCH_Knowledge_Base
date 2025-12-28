@@ -1,0 +1,175 @@
+{
+  "name": "BCH Compilers FAQ",
+  "type": "telegram_extraction",
+  "source": "BCH Compilers Telegram 2025",
+  "extraction_date": "2025-12-28",
+  "total_faqs": 34,
+  "categories": [
+    {
+      "name": "CashScript Compiler",
+      "count": 21,
+      "faqs": [
+        {
+          "q": "What is the proposed compileScript() function for CashScript?",
+          "a": "A proposed function that compiles small CashScript code segments into CashASM without requiring a full contract wrapper. Example: compileScript('a + b', {a: 'int', b: 'int'}) would output '<a> <b> OP_ADD'. This enables easier template creation by allowing developers to write complex field calculations in CashScript and compile them to CashASM at build time."
+        },
+        {
+          "q": "What syntax is proposed for standalone CashScript function compilation?",
+          "a": "Instead of requiring full contract definitions, the proposal suggests compiling standalone functions like: compileScript(`function checkLockingBytecode(bytes lockingBytecode) { require(lockingBytecode.length == 25); }`) or using arrow function syntax: `(int a, int b) => { return a + b }`. This skips the contract wrapper overhead while maintaining function parameter definitions."
+        },
+        {
+          "q": "Are standalone CashScript functions on the roadmap?",
+          "a": "Yes, creating self-contained functions is on the CashScript roadmap. When implemented, they will be compilable independently for use cases like template field injection. Adding CashASM as an explicit compilation target (separate from regular hex bytecode/asm) is also planned to support template generation workflows."
+        },
+        {
+          "q": "Is there a Python version of the CashScript SDK?",
+          "a": "CashScript-py is being developed and recently received funding. It will be feature-compatible with the JavaScript SDK. However, it's not a solution for OP_CHECKMULTISIG support since the Python version will have the same SDK limitations as the JS version (no collaborative transaction building)."
+        },
+        {
+          "q": "What is Spedn and how does it compare to CashScript?",
+          "a": "Spedn is an alternative BCH smart contract compiler with different syntax from CashScript. While CashScript is more widely adopted with active development and extensive ecosystem support, Spedn offers an alternative approach. Developers can experiment with Spedn using community test repositories, though tooling and documentation are less mature."
+        },
+        {
+          "q": "Should BCH templates use CashScript, CashASM, or bytecode?",
+          "a": "Templates should use CashASM (assembly), not CashScript or bytecode. CashScript at build-time compiles to CashASM for the final template. CashASM is human-readable, syntactically simple to port across languages, and already supported by LibAuth-based wallets (Paytaca, Selene, Cashonize, ZapIt). Bytecode would save bandwidth but requires all wallets to implement assemblers."
+        },
+        {
+          "q": "Why not embed CashScript source code in final templates?",
+          "a": "Embedding CashScript would force all wallets and dapps to incorporate a CashScript parser, creating version incompatibility issues when CashScript optimizations change the output CashASM. It also limits cross-platform adoption since non-JavaScript implementations would be difficult. Templates with only CashASM avoid these problems."
+        },
+        {
+          "q": "What are LibAuth WalletTemplates and how do they relate to BCH templates?",
+          "a": "LibAuth WalletTemplates provide a standardized format for describing BCH transactions using CashASM. Templates leverage this by embedding sandboxed CashASM evaluation instructions that wallets execute, enabling dynamic field calculations like nested evaluations: '$($(<value> <1000> OP_SUB) <2> OP_DIV)'. This allows complex transaction templates without requiring CashScript runtime support."
+        },
+        {
+          "q": "What is the debug symbols approach for BCH smart contracts?",
+          "a": "Similar to traditional compiled languages, contracts use external metadata files (debug symbols) that accompany compiled scripts. Production templates contain only CashASM/bytecode, keeping them lightweight. Debug symbols (\"byte N is variable A\") are stored separately for development/debugging only. This separates complexity from production requirements."
+        },
+        {
+          "q": "Why is CashASM evaluation executed within wallets in templates?",
+          "a": "Templates embed CashASM evaluation instructions that wallets execute in a sandboxed environment. This allows templates to perform dynamic calculations (like computing leverage ratios or concatenating NFT commitments) without requiring pre-compiled values. The wallet evaluates the CashASM expressions using its BCH VM capabilities to build the final transaction."
+        },
+        {
+          "q": "Does the CashScript TransactionBuilder automatically add change outputs?",
+          "a": "No, the advanced TransactionBuilder does nothing automatically - you must manually add satoshi change outputs and token change outputs. This design gives full control but requires developers to handle fee calculation and change output construction themselves."
+        },
+        {
+          "q": "What fee estimation utilities exist for CashScript transactions?",
+          "a": "bch-js has getByteCount() for simple cases: `bchjs.BitcoinCash.getByteCount({ P2PKH: 1 }, { P2PKH: 1 })`. However, this is too simple for CashScript multi-contract spends. More sophisticated utilities to check bytecount for different transaction shapes with varying input/output types would be valuable."
+        },
+        {
+          "q": "What debugging capabilities does CashScript v0.11.0+ provide?",
+          "a": "CashScript v0.11.0+ adds debugging support for the new transaction builder, allowing use with mocknet for local testing and integration with the Bitauth IDE. You can call .debug() on failed transactions or .bitauthUri() to manually inspect. The debugging works with the contract's optimized bytecode, so dev and prod contracts are identical, eliminating the dev/prod discrepancy that could hide bugs."
+        },
+        {
+          "q": "Can you debug transactions that spend from multiple different smart contracts?",
+          "a": "Yes, in CashScript v0.11.0+. Use the new transaction builder to combine multiple contracts in a single transaction, then call .debug() or .bitauthUri() on it. The Bitauth IDE allows you to click through and debug each input individually, making multi-contract transaction debugging straightforward."
+        },
+        {
+          "q": "What is CashScript Arena?",
+          "a": "CashScript Arena (arena.layer1.cash) is an interactive learning platform with challenges based on exploitable or broken smart contracts. It's designed for both complete beginners (first challenge just requires setting up the environment) and experienced developers to practice contract security and CashScript fundamentals."
+        },
+        {
+          "q": "What new features does CashScript v0.11.0 introduce?",
+          "a": "v0.11.0's highlight is debugging capabilities for the new transaction builder, allowing use with mocknet for local testing and Bitauth IDE integration. The old simple transaction builder is deprecated. The release includes sourcemaps that work with optimized bytecode so dev and prod contracts are identical. See migration-notes in docs for breaking changes."
+        },
+        {
+          "q": "What new features does CashScript v0.11.4 include?",
+          "a": "v0.11.4 includes a bug fix for P2PKH-only transactions and enhanced MockNetworkProvider functionality that allows simulating a real network more closely during testing. Both features were contributed by the community (mainnet_pat)."
+        },
+        {
+          "q": "What new features does CashScript v0.12.0 introduce?",
+          "a": "v0.12.0 removes the old deprecated transaction builder and adds: 1) getVmResourceUsage() function to measure VM resource consumption, 2) New TransactionBuilder safety options, 3) Several breaking changes requiring migration (see migration-notes in docs)."
+        },
+        {
+          "q": "What new guides are available in the CashScript documentation?",
+          "a": "The CashScript docs now include two essential BCH development guides that document assumed knowledge: 1) \"Transaction Lifecycle\" guide explaining how transactions are created, validated, and propagated, and 2) \"Adversarial Analysis\" guide covering security considerations and attack vectors in smart contract development."
+        },
+        {
+          "q": "Why does my CashScript transaction hang when using ElectrumNetworkProvider?",
+          "a": "If using CashScript v0.10.0 with chipnet, the old default electrum server is down. Either pass a custom server like chipnet.bch.ninja when instantiating ElectrumNetworkProvider, or upgrade to the @next pre-release which has updated default servers."
+        },
+        {
+          "q": "Does the CashScript SDK support OP_CHECKMULTISIG?",
+          "a": "No, the language supports it but the SDK does not. OP_CHECKMULTISIG requires collaborative transaction building support which isn't currently implemented. The recommended alternative is using NFTs for multisig authorization - for 1-of-M scenarios, NFT ownership proves authorization; for N-of-M, participants can merge NFTs non-interactively to accumulate the required N signatures."
+        }
+      ]
+    },
+    {
+      "name": "Libauth & Templates",
+      "count": 7,
+      "faqs": [
+        {
+          "q": "What is the trade-off between CashASM and bytecode in templates?",
+          "a": "Bytecode advantages: smaller file size, bandwidth savings (important for NFC). CashASM advantages: human-readable, simpler parser implementation, easier cross-language porting, already supported in LibAuth wallets. The consensus is CashASM provides better versatility and portability while keeping complexity manageable, with bytecode reserved for specific use cases like NFC."
+        },
+        {
+          "q": "How does template design balance versatility vs simplicity?",
+          "a": "CashASM is chosen as a mid-ground: syntactically simple enough to port to other languages but versatile enough for complex contract use-cases. Nested evaluation capabilities are needed for transaction shape definitions and signing operations. The philosophy is to handle complexity in tooling (build-time) rather than requiring wallets to support complicated features."
+        },
+        {
+          "q": "Which BCH wallets currently support CashASM?",
+          "a": "At least four ecosystem wallets use LibAuth under the hood and thus support CashASM: Paytaca, Selene, Cashonize, and ZapIt. Electron Cash may have ported it with the new WalletConnect plugin. This existing support makes CashASM a practical choice for template standardization."
+        },
+        {
+          "q": "How do you calculate transaction fees when spending from multiple contracts?",
+          "a": "Fee calculation is non-trivial for multi-contract spends because input sizes aren't known until unlockers are defined. Options include: 1) Use getCurrentByteSize() or build() then check rawTxHex.length/2 to get transaction size, 2) Create utility functions to estimate output sizes, 3) Build the transaction, parse with libauth to check sizes, then add balancing outputs (which may require extra inputs)."
+        },
+        {
+          "q": "Can NFT inputs be auto-populated in transaction builders?",
+          "a": "No elegant solution exists yet for auto-populating NFT inputs. NFTs must be explicitly passed in the template rather than populated automatically. Most transactions requiring NFTs need to specify a particular outpoint anyway (\"use this exact UTXO\"), making auto-selection less useful than with fungible assets."
+        },
+        {
+          "q": "Can you select specific inputs to debug in TransactionBuilder.debug()?",
+          "a": "No, debug() automatically debugs the entire transaction. When you open the Bitauth URI (logged on debug failure or via bitauthUri()), you can click through different inputs one by one in the IDE. This allows inspecting each input individually even though debugging operates on the complete transaction."
+        },
+        {
+          "q": "What advantages does NFT-based multisig offer over traditional OP_CHECKMULTISIG?",
+          "a": "NFT-based multisig provides better discoverability and easier backup recovery. Since NFT ownership is on-chain and queryable, wallets can discover multisig authorization tokens by scanning the blockchain. Traditional multisig requires coordinating public keys off-chain. For N-of-M scenarios, NFTs can be merged non-interactively to accumulate signatures."
+        }
+      ]
+    },
+    {
+      "name": "Bytecode & Opcodes",
+      "count": 1,
+      "faqs": [
+        {
+          "q": "Does Bitcoin Cash have MAST or Taproot?",
+          "a": "No, BCH does not currently have MAST or Taproot. However, there's an ongoing CHIP proposal for OP_EVAL which would enable MAST-like constructions. Additionally, MAST functionality can be emulated today using BCH's native introspection opcodes, specifically OP_UTXOBYTECODE, without requiring a protocol upgrade."
+        }
+      ]
+    },
+    {
+      "name": "Language Features",
+      "count": 2,
+      "faqs": [
+        {
+          "q": "How is the CashConnect wallet transaction building API designed?",
+          "a": "CashConnect uses a partial TransactionTemplate approach where users provide outputs (with lockingBytecode, valueSatoshis, and optional token data), and the wallet automatically appends required inputs and change outputs. The TransactionBuilder follows the tokens-first, satoshis-last pattern internally, handling fee calculation and change construction transparently."
+        },
+        {
+          "q": "What transaction builder utilities are proposed for fee management?",
+          "a": "Proposals include: getCurrentByteSize() to get current transaction size, and calculateOutputSizes() to estimate change output sizes for different types (like P2PKH with tokens). The current method is building the transaction and checking rawTxHex.length/2, but more sophisticated utilities would help with multi-contract spends."
+        }
+      ]
+    },
+    {
+      "name": "General Tooling",
+      "count": 3,
+      "faqs": [
+        {
+          "q": "What is the correct order for handling tokens and satoshis when building transactions?",
+          "a": "Tokens first, satoshis last. Correct sequence: addTokensFromUnspents() → addTokenChangeOutputs() → addSatoshisFromUnspents() → addSatoshiChangeOutput(). This is critical because satoshi change amount depends on the final transaction fee, which can only be calculated after token outputs are finalized."
+        },
+        {
+          "q": "How can you get intermediate transaction information before finalizing?",
+          "a": "After adding contract spends with defined unlockers, you could extract intermediate information like input sizes from the prebuilt transaction. Since spending args are provided to unlockers, the final input shape is known. This would help calculate change outputs before fully building and sending the transaction."
+        },
+        {
+          "q": "What features does the Flowee API transaction builder provide?",
+          "a": "The Flowee API transaction builder includes: automatic byte count calculation, output adjustment to achieve specific fee-per-byte targets, and BIP69 anonymity features (deterministic input/output ordering). These are reference implementations for transaction building best practices."
+        }
+      ]
+    }
+  ]
+}
