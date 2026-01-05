@@ -3,7 +3,7 @@
   "type": "telegram_extraction",
   "source": "CashScript Telegram 2025",
   "extraction_date": "2025-12-28",
-  "total_faqs": 120,
+  "total_faqs": 114,
   "categories": [
     {
       "name": "Language & Syntax",

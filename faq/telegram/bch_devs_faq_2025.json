@@ -35,7 +35,7 @@
         },
         {
           "q": "How do I store user state (like deposits) in a BCH smart contract?",
-          "a": "Unlike EVM contracts with storage slots, BCH uses the UTXO model where state is stored using NFT commitments. When a user deposits, the contract creates an NFT with the user's address and deposit amount stored in the NFT's commitment field. Think of each NFT as a little struct containing: satoshi amount, token category, token capability, and custom fields (user address, flags, etc.). To query user deposits, you interact with the contract using the relevant NFT. Example projects: BadgersStake and CashStarter on GitHub."
+          "a": "Unlike EVM contracts with storage slots, BCH uses the UTXO model where state is stored using NFT commitments. When a user deposits, the contract creates an NFT with the user's address and deposit amount stored in the NFT's commitment field. Think of each NFT output as containing: satoshi amount, token category (which includes any capability byte appended to the 32-byte category ID), and custom commitment data (user address, flags, etc.). To query user deposits, you interact with the contract using the relevant NFT. Example projects: BadgersStake and CashStarter on GitHub."
         },
         {
           "q": "Are there public/private functions in BCH smart contracts like Solidity?",

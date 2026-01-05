@@ -176,16 +176,18 @@ console.log('Token balance:', balance.toString());
 
 ## Advanced CashTokens Patterns
 
-### Token Minting Contract
+### Token Distribution Contract
+
+> **Important**: Fungible tokens cannot be "minted" post-genesis. ALL fungible tokens for a category are created in the genesis transaction. The contract below distributes pre-existing tokens from a pool. Only NFTs can be created post-genesis using minting capability (0x02).
 
 ```cashscript
-contract TokenMinting(pubkey minter, bytes32 tokenCategory) {
-    function mint(sig minterSig, int amount) {
-        require(checkSig(minterSig, minter));
-        
-        // Ensure minting to correct category
+contract TokenDistribution(pubkey distributor, bytes32 tokenCategory) {
+    function distribute(sig distributorSig, int amount) {
+        require(checkSig(distributorSig, distributor));
+
+        // Distribute tokens from pool to correct category
         require(tx.outputs[0].tokenCategory == tokenCategory);
-        
+
         // Ensure positive amount
         require(amount > 0);
         require(tx.outputs[0].tokenAmount == amount);
