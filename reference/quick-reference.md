@@ -7,22 +7,7 @@
 pragma cashscript ^0.12.1;
 
 contract ContractName(Type param1, Type param2) {
-    // Define reusable functions
-    OP_DEFINE helperFunction(Type arg) {
-        require(condition);
-    }
-
     function functionName(Type arg1, Type arg2) {
-        // Use loops
-        int i = 0;
-        OP_BEGIN
-            // Loop body
-            i = i + 1;
-        OP_UNTIL(i >= 5)
-
-        // Invoke defined functions
-        OP_INVOKE helperFunction(arg1);
-
         require(condition);
     }
 }
@@ -74,16 +59,6 @@ hash256(any x) -> bytes32
 checkSig(sig s, pubkey pk) -> bool
 checkMultiSig(sig[] sigs, pubkey[] pks) -> bool
 checkDataSig(datasig s, bytes msg, pubkey pk) -> bool
-```
-
-#### Control Flow Operations
-```cashscript
-OP_BEGIN               // Loop entry point
-    // Loop body
-OP_UNTIL(condition)    // Loop while condition is false
-
-OP_DEFINE funcName(args) { body }  // Define reusable function
-OP_INVOKE funcName(args)           // Invoke defined function
 ```
 
 ### Global Variables

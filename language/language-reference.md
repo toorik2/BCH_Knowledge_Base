@@ -266,10 +266,10 @@ contract Message(bytes message) {
 
 ## STRUCTURED COMMITMENT PACKING
 
-**128-byte NFT commitments require careful layout planning**. Production contracts pack multiple values with explicit byte positions:
+**NFT commitments (40 bytes current, 128 in May 2026) require careful layout planning**. Production contracts pack multiple values with explicit byte positions:
 
 ```cashscript
-// PRODUCTION PATTERN: Pack multiple values into 128-byte commitment
+// PRODUCTION PATTERN: Pack multiple values into commitment (40 bytes current)
 // Layout: userPkh(20) + reserved(18) + lockBlocks(2) = 40 bytes total
 bytes20 userPkh = 0xaabbccdd...;  // 20 bytes
 int lockBlocks = 1000;             // Will become 2 bytes
@@ -321,7 +321,7 @@ bytes existingTail = tx.inputs[0].nftCommitment.split(2)[1];  // Keep last 38 by
 require(tx.outputs[0].nftCommitment == bytes2(newFee) + existingTail);
 ```
 
-**Common layouts (128 bytes)**:
+**Common layouts (40 bytes current, 128 in May 2026)**:
 ```
 [pubkeyhash(20) + fee(2) + adminPkh(18)]                    // Admin contract
 [pubkeyhash(20) + reserved(18) + blocks(2)]                 // Time-locked
@@ -1151,7 +1151,7 @@ contract MasterReference() {
         // User proves ownership by spending their UTXO
         require(tx.inputs[1].lockingBytecode == new LockingBytecodeP2PKH(userPkh));
 
-        // PATTERN: Structured 128-byte commitment packing
+        // PATTERN: Structured commitment packing (40 bytes current)
         // Layout: userPkh(20) + reserved(18) + lockBlocks(2) = 40 bytes
         bytes lockLength = bytes2(lockBlocks);
         require(tx.outputs[1].nftCommitment == userPkh + bytes18(0) + lockLength);
@@ -1254,7 +1254,7 @@ contract MasterReference() {
 1. **`this.activeInputIndex`** - Always validate which input is executing the contract
 2. **Exact counts** - Use `==` not `>=` for input/output validation
 3. **UTXO authorization** - Prove ownership by spending UTXOs, not signatures
-4. **Structured commitments** - Pack multiple values into 128-byte commitment with clear layout
+4. **Structured commitments** - Pack multiple values into commitment (40 bytes, 128 in May 2026) with clear layout
 5. **Capability manipulation** - `.split(32)[0] + 0x01` to change NFT capabilities
 6. **Fee accounting** - Explicit dust (1000 sats) and fee subtraction
 7. **Optional outputs** - Use `if` blocks for variable output counts
@@ -1281,7 +1281,7 @@ contract MasterReference() {
 | `for/while` loops | `do {} while()` | Beta in v0.13.0, body executes first |
 
 **Key paradigm shifts:**
-- **No persistent state** - State lives in NFT commitments (128 bytes)
+- **No persistent state** - State lives in NFT commitments (40 bytes, 128 in May 2026)
 - **No O(1) lookups** - Must loop over UTXOs, no hash tables
 - **No code reuse** - No import/library/inheritance mechanisms
 - **Fee = tx size** - Cost based on bytes, not opcodes (no "gas optimization")
