@@ -1,0 +1,44 @@
+[
+  {
+    "id": "electron_cash",
+    "name": "Electron Cash FAQ",
+    "file": "telegram/electron_cash_faq_2025.json",
+    "total_faqs": 327,
+    "categories": 11
+  },
+  {
+    "id": "bch_devs",
+    "name": "BCH Devs & Builders FAQ",
+    "file": "telegram/bch_devs_faq_2025.json",
+    "total_faqs": 305,
+    "categories": 11
+  },
+  {
+    "id": "bchn",
+    "name": "BCHN FAQ",
+    "file": "telegram/bchn_faq_2025.json",
+    "total_faqs": 222,
+    "categories": 9
+  },
+  {
+    "id": "cashscript",
+    "name": "CashScript FAQ",
+    "file": "telegram/cashscript_faq_2025.json",
+    "total_faqs": 120,
+    "categories": 13
+  },
+  {
+    "id": "cashtoken_devs",
+    "name": "CashToken Devs FAQ",
+    "file": "telegram/cashtoken_devs_faq_2025.json",
+    "total_faqs": 81,
+    "categories": 9
+  },
+  {
+    "id": "bch_compilers",
+    "name": "BCH Compilers FAQ",
+    "file": "telegram/bch_compilers_faq_2025.json",
+    "total_faqs": 34,
+    "categories": 5
+  }
+]

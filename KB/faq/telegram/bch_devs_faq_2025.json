@@ -1,0 +1,1295 @@
+{
+  "name": "BCH Devs & Builders FAQ",
+  "type": "telegram_extraction",
+  "source": "BCH Devs & Builders Telegram 2025",
+  "extraction_date": "2025-12-28",
+  "total_faqs": 305,
+  "categories": [
+    {
+      "name": "Smart Contracts & CashScript",
+      "count": 171,
+      "faqs": [
+        {
+          "q": "Where can I find security guidelines for BCH application developers?",
+          "a": "A developer guidelines document covering environmental risks and survival considerations for script developers and DeFi developers is available at bitcoincashresearch.org/t/bitcoin-application-developer-guidelines-environmental-risks-survival/1470. This covers important security considerations for building applications on BCH."
+        },
+        {
+          "q": "How can I implement rate limiting on my BCH infrastructure to prevent bandwidth abuse?",
+          "a": "Several options exist depending on your setup: 1) Fulcrum has built-in rate limiting features you can enable in the configuration. 2) For nginx, use 'limit_rate 100k;' to cap bandwidth per connection. 3) For BCHN p2p connections, you can write a shell script that uses the RPC to check peer bandwidth usage and ban nodes consuming too much data - run this via cron every 15 minutes. 4) Consider hosting providers with 'unlimited' plans that throttle rather than cut off service when quotas are exceeded. These measures help protect public infrastructure like chipnet explorers from being overwhelmed by bots or scrapers."
+        },
+        {
+          "q": "Can ZK-STARKs or shielded addresses be implemented on BCH?",
+          "a": "Shielded addresses that hide sender and receiver (but not UTXO amounts) are theoretically possible on BCH without consensus changes, thanks to BCH's powerful opcodes and math capabilities. However, there are practical challenges: the shielding makes it computationally expensive to find your money on-chain because you must test every output with a costly EC-mul operation. For a comprehensive discussion of advantages, disadvantages, and technical challenges, creating a topic on Bitcoin Cash Research (BCR) forum is recommended to track the conversation properly."
+        },
+        {
+          "q": "Does BCH need a special ZKP opcode for zero-knowledge proofs?",
+          "a": "Not necessarily. ZKP ultimately boils down to math operations like polynomial arithmetic, which can be done using existing BCH opcodes on the stack. A specialized opcode could offer advantages (efficiency, simpler code), but would add complexity and risk to the consensus layer. BCH's powerful math capabilities after the VM limits upgrade make it possible to implement ZKP using existing opcodes without consensus changes."
+        },
+        {
+          "q": "Is there a CashScript VS Code extension?",
+          "a": "Yes, there's an official CashScript VS Code extension that provides syntax highlighting and language support for all the latest CashScript functionality. It replaces the older unofficial extension. Search for 'CashScript' in the VS Code extension marketplace to install it."
+        },
+        {
+          "q": "What is the BCH/CashScript equivalent of Solidity's receive() function?",
+          "a": "There is no direct equivalent in BCH Script. Solidity's receive() is triggered automatically when a contract receives ETH, but BCH contracts work differently - there's no automatic callback when funds are sent to a contract address. To detect incoming payments, you need to listen to an indexer for address receive events. This is a fundamental difference between EVM's account model and BCH's UTXO model."
+        },
+        {
+          "q": "How do I store user state (like deposits) in a BCH smart contract?",
+          "a": "Unlike EVM contracts with storage slots, BCH uses the UTXO model where state is stored using NFT commitments. When a user deposits, the contract creates an NFT with the user's address and deposit amount stored in the NFT's commitment field. Think of each NFT output as containing: satoshi amount, token category (which includes any capability byte appended to the 32-byte category ID), and custom commitment data (user address, flags, etc.). To query user deposits, you interact with the contract using the relevant NFT. Example projects: BadgersStake and CashStarter on GitHub."
+        },
+        {
+          "q": "Are there public/private functions in BCH smart contracts like Solidity?",
+          "a": "No, every function in a BCH smart contract can be called by anyone - there's no native public/private distinction like in Solidity. You need to explicitly lock down function capabilities within your contract logic, typically by checking signatures or other conditions before allowing sensitive operations to proceed."
+        },
+        {
+          "q": "How does Cauldron DEX create unique contract addresses per user?",
+          "a": "Cauldron stores each user's pubkey as part of the contract code itself. Since the pubkey is part of the locking script, different users will have Cauldron contract addresses unique to them. The pubkey can then be used to authorize withdrawals. This is a common pattern in UTXO-based contracts for linking state to specific users without requiring separate NFT receipts."
+        },
+        {
+          "q": "Where is the CashScript Telegram community?",
+          "a": "There's a dedicated Telegram channel for CashScript at t.me/CashScriptBCH. This is the main place to discuss CashScript development, ask questions, share learning resources, and discuss contract design."
+        },
+        {
+          "q": "Is OP_EVAL dangerous for BCH smart contracts?",
+          "a": "No, OP_EVAL itself isn't inherently dangerous. BCH Script already has enough capability to write risky contracts without eval. OP_EVAL won't magically affect existing contracts that don't use it. The concern is more about compiler complexity when utilizing subroutines. If you think a contract using eval is risky, you're not forced to lock money with it. The evaluation is still bounded by existing VM limits."
+        },
+        {
+          "q": "What are the locking bytecode limits in TXv5?",
+          "a": "TXv5 (transaction version 5) increases the locking bytecode limit to 100,000 bytes, significantly up from P2SH limits. This is an important consideration because locking bytecode is stored in the UTXO set, which affects node storage requirements. Developers should be mindful of these expanded limits and their impact on UTXO set growth."
+        },
+        {
+          "q": "Why do the bytecode length limits no longer matter after the VM Limits CHIP?",
+          "a": "Following the VM Limits CHIP, bytecode and stack item length limits are no longer relevant to worst-case transaction or block validation performance. Since standard transactions can include many inputs up to MAX_STANDARD_TX_SIZE (100,000 bytes), lower per-item or per-input length limits offer no additional safety to the network while inconveniencing applications with larger contiguous data requirements."
+        },
+        {
+          "q": "What are the different use cases for OP_EVAL in BCH?",
+          "a": "Different developers value OP_EVAL for different reasons: 1) Stack optimization - implementing custom operations like 'unroll' to move items in the stack without dedicated opcodes; 2) CashScript compiler - provides a simple way to compile functions into executable bytecode with compiler-managed calling conventions; 3) Bytecode compression - detecting repeating patterns and using CAT/SPLIT to construct optimized code; 4) Flexibility - executing stack items from any source in the transaction (locking script, unlocking script, other inputs via introspection, or constructed dynamically)."
+        },
+        {
+          "q": "What is the difference between OP_EVAL and the Subroutines CHIP?",
+          "a": "The key difference is where code can come from. Subroutines forces code to be defined in the locking script with an index-based call system (runsub). OP_EVAL is more flexible - it executes bytecode from the stack, which can originate from anywhere: the locking script, unlocking script, other inputs/outputs via introspection, or dynamically constructed via CAT. Subroutines offers potentially better bytecode compression in some cases and a 2-byte call overhead, while OP_EVAL offers maximum flexibility for contract designers."
+        },
+        {
+          "q": "Where can I find the Subroutines CHIP proposal for BCH?",
+          "a": "The Subroutines CHIP proposal is available at codeberg.org/bitcoincash/CHIP-subroutines. It's linked from Bitcoin Cash Research (BCHR) as well. The CHIP process involves crystallizing discussions into a formal document to avoid people having to wade through hundreds of comments."
+        },
+        {
+          "q": "Is BCH Script meant to be 'safe' or 'unsafe' like C?",
+          "a": "Script is a low-level language and is intended to be 'unsafe' in the same way assembly or C are unsafe - it gives developers direct control without guardrails. CashScript can be 'safe' as a higher-level language that compiles to safe Script patterns. The philosophy is: provide powerful low-level primitives, and let compilers/higher-level languages provide safety abstractions for developers who want them."
+        },
+        {
+          "q": "Can OP_EVAL cause DoS attacks on BCH nodes?",
+          "a": "No. Scripts run in a container and are bounded by the parent's VM limits. There's an 'execution budget' - once depleted, the transaction is considered invalid. The VM keeps a tally of every operation executed. A program either passes or fails; it can't break consensus or the VM itself. Code evaluated via OP_EVAL is verified and limited the same way normal scripts are."
+        },
+        {
+          "q": "How can I make OP_EVAL safe by verifying code before execution?",
+          "a": "You can hash-verify code before executing it: <push bytecode from stack> OP_DUP OP_HASH256 <hardcoded hash> OP_EQUALVERIFY OP_EVAL. This pattern allows bytecode to be fetched from arbitrary sources (another input, NFT commitment, etc.) while ensuring only the expected code runs. The hash in your 'main' program acts as a commitment to the subroutine code."
+        },
+        {
+          "q": "Can BCH verify Zero-Knowledge Proofs (ZKPs) on-chain?",
+          "a": "Yes, BCH can technically verify ZKPs without needing a dedicated opcode, but it's currently highly impractical - you'd need to use many different contract inputs. After the VM Limits upgrade (2025), it becomes more feasible. The real challenge is transaction size and fees: porting a zkVM's verification might cost ~10,000x typical BCH transaction fees. Future CHIPs adding loops and optimization could make ZKP verification more practical."
+        },
+        {
+          "q": "Can OP_EVAL functionality be emulated in current BCH Script?",
+          "a": "Yes, OP_EVAL's 'unsafe' features can already be emulated using BCH's native introspection opcodes like OP_UTXOBYTECODE. A Medium article (search 'Emulating OP_EVAL using Bitcoin Cash native introspection opcodes') demonstrates this. This means the security model hasn't fundamentally changed - careful contract design has always been necessary."
+        },
+        {
+          "q": "Is BCH Script compiled or interpreted?",
+          "a": "BCH Script is interpreted in a VM sandbox, not compiled to machine code like x86 and then executed. Unlike Forth which can be compiled to machine language, BCH Script runs directly in the node's script interpreter. This means concepts like 'splitting code and compiling segments in parallel' from programming language theory don't directly apply to runtime execution."
+        },
+        {
+          "q": "What's the history of covenants on BCH?",
+          "a": "BCH has had covenants since 2018. In 2022, native introspection opcodes made covenants 'easy' to implement. In 2023, CashTokens brought persistent state, allowing covenants to communicate with each other and provide compact proofs. In 2025, the VM Limits/BigInts upgrade enables more advanced capabilities - things like Lamport signatures might fit in a single input. The 2026 CHIPs (Loops, OP_EVAL, P2S) would further reduce costs and complexity."
+        },
+        {
+          "q": "What CHIPs are planned for BCH in 2026?",
+          "a": "The proposed 2026 CHIPs include Loops, OP_EVAL, and P2S (Pay-to-Script). These are still in 'debate' stage as of early 2025. These upgrades would make certain advanced covenants (like ZK verification) much smaller and cheaper. However, they need to go through the full CHIP process with community review before activation."
+        },
+        {
+          "q": "Would ZK privacy transactions replace P2PKH on BCH?",
+          "a": "No, P2PKH won't be replaced - it's superior for UX and ease of use. ZK shielded transactions would be opt-in for privacy. Users would enter a p2sh contract system holding BCH, receiving an NFT with a random-looking 32-byte commitment. Inside the system, you split/merge/transfer by providing ZK proofs and creating outputs with updated NFT commitments. To exit back to regular P2PKH, you provide a different ZK proof to claim your portion of the pooled BCH."
+        },
+        {
+          "q": "What advantage would ZK shielded pools have over CashFusion for BCH privacy?",
+          "a": "The main advantage is non-interactivity. With a ZK shielded pool, you pay in, transact inside the shielded covenant, and pay out whenever you like - no need to wait for others. CashFusion requires coordinating with other participants in real-time. For external observers, a ZK pool would look like one address transacting with itself, with the NFT commitment encrypting balances and ownership inside the pool."
+        },
+        {
+          "q": "What's the nullifier problem for ZK privacy on BCH?",
+          "a": "When implementing Tornado Cash-style ZK privacy on BCH, you need to track all previously used 'nullifiers' to prevent withdrawal replay/double-spending. ETH has global state and hash tables that make this trivial, but BCH has no equivalent. All used nullifiers would need to be fed into the contract when withdrawing, becoming the limiting factor. One workaround is a challenge step with bonds - require a 'bond' when withdrawing that someone can claim if they prove the nullifier was already used - but this hurts UX compared to EVM implementations."
+        },
+        {
+          "q": "Why will ZK transactions on BCH be large even with efficient opcodes?",
+          "a": "Even if the contract/opcode is small, the ZK proofs themselves are inherently large, so transactions will be big. Proof sizes can't get smaller unless some breakthrough cryptosystem is discovered. This is a fundamental limitation of current ZK technology, not something that can be optimized away with better contract design. The proofs themselves take up most of the space."
+        },
+        {
+          "q": "How does a ZK proof prevent miners from changing the withdrawal address?",
+          "a": "The recipient address is used as an input into the ZK proof itself. When creating the proof, you essentially hardcode the destination address. When the contract verifies the proof using the nullifier hash, merkle root, and other inputs, changing any of these values (including the recipient address) would make the proof verification fail. The proof is mathematically bound to the specific recipient."
+        },
+        {
+          "q": "Is there any existing work on Groth16 ZK verification for CashScript?",
+          "a": "Yes, there's an experimental repository at github.com/mr-zwets/groth16_cashscript that explores implementing Groth16 verification in CashScript. This work helps identify what's currently missing and what additional capabilities would be needed to make ZK verification practical on BCH."
+        },
+        {
+          "q": "What are the risks of porting ZK code from EVM to BCH without deep cryptographic knowledge?",
+          "a": "Significant risks exist. When reimplementing cryptographic code without domain knowledge, you can introduce subtle vulnerabilities - like nonce reuse in ECDSA which can expose private keys. ZK implementations may have similar non-obvious pitfalls. Even if BCH Script is theoretically Turing complete and can 'express any program', the implementation details matter enormously for security. Anyone porting ZK protocols should understand not just the contract logic, but the underlying cryptographic assumptions."
+        },
+        {
+          "q": "What is a 'Turing tarpit' and how does it relate to BCH Script?",
+          "a": "A Turing tarpit is a language that is technically Turing-complete but nearly impossible to use for practical programming. The original BCH Script VM inherited from BTC was even worse - not Turing complete at all, like a calculator without multiplication where you had to do ADD, ADD, ADD repeatedly. BCH's upgrades (native introspection, BigInts, VM Limits) have progressively made Script more practical, moving it away from tarpit territory."
+        },
+        {
+          "q": "How does OP_CHECKSEQUENCEVERIFY (CSV) work with nSequence for relative timelocks?",
+          "a": "Consensus ALWAYS enforces whatever nSequence value is in the transaction - miners can't mine a transaction until the input ages to match. However, without CSV or introspection, whoever can spend the funds can set ANY valid nSequence value (0 up to the UTXO's current age). CSV or introspection lets the script LIMIT what values are allowed, enforcing a minimum wait time. Three scenarios: 1) Pre-signed tx: locked by signature; 2) Self-controlled funds: can pick any value; 3) Covenant: script enforces minimum."
+        },
+        {
+          "q": "Can miners bypass nSequence relative timelocks if CSV isn't used?",
+          "a": "If the nSequence field isn't locked (by signature, CSV, or introspection), a miner could theoretically modify the transaction to change the nSequence value and mine it ahead of time. This is why you need to lock the field somehow: signatures cover nSequence, CSV validates it in script, or introspection can check tx.inputs[i].sequenceNumber. Once locked, consensus enforces it and miners CAN'T mine until the input ages."
+        },
+        {
+          "q": "What is BitCANN and how does it work?",
+          "a": "BitCANN is an Unstoppable Domains/ENS-like domain name protocol for BCH. It's one of the most complex script systems built on BCH, using relative timelocks and multiple interacting contracts. The project is available at github.com/BitCANN/contracts and includes documentation with diagrams explaining the contract interactions."
+        },
+        {
+          "q": "What BCH project ideas are needed in the ecosystem?",
+          "a": "Several project ideas are wanted: 1) Visualizer/simulator for different AMM DEX curves; 2) CashScript-py SDK; 3) Address analyzer (to check for privacy leaks); 4) Double spend proof (DSP) checker website; 5) BCMR indexer in TypeScript. Also WalletConnect apps: airdrop/dividends, vault, Last-Will inheritance, Mecenas recurring payments, Hodl timelock, and AnyHedge integration."
+        },
+        {
+          "q": "How do recurring payments work in BCH smart contracts?",
+          "a": "With BCH recurring payments like Mecenas, you pre-fund an amount and no further user action is needed. The recipient (or any server/user) can 'pull' the pre-set amount at pre-set intervals - the contract enforces the timing and amounts. An alternative approach (unspent.cash) has anyone with any BCH wallet initiate payments without WalletConnect. For pull-based payments without pre-funding, authorization tokens can be issued from a pool with spending restrictions."
+        },
+        {
+          "q": "Can BCH recurring payments use fiat denominations?",
+          "a": "Users often want fiat-denominated payments (e.g., $30/month) which requires an oracle to determine BCH amounts at payment time. This works until the oracle stops operating. Projects like unspent.cash deliberately avoid oracles to ensure longevity - the contracts are designed to work for decades without any central dependency. It's a tradeoff between convenience (fiat amounts) and resilience (no oracle dependency)."
+        },
+        {
+          "q": "What is the OP_RETURN Scanner tool?",
+          "a": "OP_RETURN Scanner is a utility to find all occurrences of a specific OP_RETURN marker on-chain. For example, searching for 'BCMR' finds all 3400+ BCMR registration transactions. Available at opreturn-scanner.netlify.app with source code at github.com/mr-zwets/opreturn-scanner. Useful for indexing protocols that use OP_RETURN markers."
+        },
+        {
+          "q": "What is ARCC for BCH?",
+          "a": "ARCC (github.com/kiok46/arcc) is an advanced recurring payment contract structure for BCH. It provides more sophisticated recurring payment capabilities compared to simpler approaches. The Zapit team has been looking into integrating it as a service."
+        },
+        {
+          "q": "Why should protocols use OP_RETURN markers (LOKAD-id) for on-chain data?",
+          "a": "Using a LOKAD-id prefix in OP_RETURN outputs makes your protocol discoverable and indexable on-chain. Without it, transactions are hard to find and identify. With a registered LOKAD-id (4-byte prefix), anyone can easily search for all transactions using your protocol. Register your protocol's LOKAD-id at github.com/lokad/lokad-idspace to claim a unique identifier."
+        },
+        {
+          "q": "How can BCH dApps work without application servers?",
+          "a": "By putting all contract details on-chain, BCH dApps can operate as client-only applications with no backend server. The client reads contract state from the blockchain, constructs transactions locally, and broadcasts them. Examples like BCH Hodl Dapp (bch-hodl-dapp.netlify.app) demonstrate this pattern. This eliminates server hosting costs and single points of failure. The tradeoff is requiring on-chain storage and careful protocol design for discoverability."
+        },
+        {
+          "q": "How do I monitor an address for incoming BCH payments using Electrum protocol?",
+          "a": "Use the Electrum Cash Protocol (electrum-cash-protocol.readthedocs.io): 1) Connect to a Fulcrum server, 2) Use blockchain.scripthash.subscribe to monitor an address - this returns current state and notifies on changes (0-conf and first confirmation), 3) When notified, call blockchain.scripthash.get_balance or blockchain.scripthash.listunspent to get details, 4) Use server.ping to keep connection alive. The subscription triggers on any state change (receives AND spends), so filter for receives on your side."
+        },
+        {
+          "q": "How can I implement Dutch Auctions with CashTokens?",
+          "a": "Dutch Auctions (price decreases over time until someone buys) can be implemented using CashScript timelocking contracts. The contract starts at a high price and decreases based on block number. Key considerations: 1) Adding a 'cancel' function requires preventing race conditions where seller cancels right after a buyer commits, 2) You can use BIP68 512-second time units for finer granularity than block-based timing, 3) For canceling lots, consider making it trivial for consigners to 'buy back' their UTXOs through the UI. See bitcoincashresearch.org discussions on Unspent Phi for implementation details."
+        },
+        {
+          "q": "Why does my CashScript contract fail when using checkSig with the OR operator?",
+          "a": "This is due to the NULLFAIL rule (BIP-146). When checkSig evaluates a signature against the wrong public key, it doesn't return false and continue - it errors out entirely. So `require(checkSig(sig, pubkeyA) || checkSig(sig, pubkeyB))` will always fail because whichever key doesn't match will cause an error, not return false. The fix: use two separate signature parameters and pass an empty signature (0x) for the one you're not using: `function release(sig sigA, sig sigB) { require(checkSig(sigA, pubkeyA) || checkSig(sigB, pubkeyB)); }`. Then pass (0x, realSig) or (realSig, 0x) depending on which key is signing."
+        },
+        {
+          "q": "How do I sign a transaction that spends CashTokens?",
+          "a": "When spending a CashToken UTXO, the signature preimage must include token data in TWO places: 1) Token prefix + token data before the scriptCode/locking script for the input being spent, and 2) The 'transaction outputs hash' must include token prefixes for any outputs containing tokens. A common bug is updating only the input's token contents but forgetting to include tokens in the outputs hash. Reference documentation.cash/protocol/blockchain/transaction/transaction-signing.html and the CashTokens CHIP for the exact serialization format. SIGHASH_UTXOS is optional - you can sign token transactions without it."
+        },
+        {
+          "q": "Does checkSig return false or error when signature verification fails?",
+          "a": "Due to the NULLFAIL rule, checkSig will ERROR (fail the script entirely) if a non-empty signature fails verification. It only returns false (allowing script to continue) when passed an empty byte (0x/null). This is why 'NULLFAIL' - null OR fail. This prevents malleability attacks where someone could flip a failing signature to something else that also fails but changes the transaction hash."
+        },
+        {
+          "q": "Why was token data placed outside the scriptCode in signature preimages?",
+          "a": "Token data is intentionally placed outside (before) the scriptCode in the signature preimage so that old software cannot accidentally generate valid token signatures and burn tokens. The 'modified' locking script is only used to cover the input being spent's prevout. For tx encoding, tokens go inside the output; for sig preimages, they're external. This design ensures unupgraded wallet software simply cannot send tokens at all, rather than potentially destroying them."
+        },
+        {
+          "q": "What's the best approach for subscribing to millions of scripthash addresses?",
+          "a": "Fulcrum's default max_subs limit of 10 million is a DoS prevention measure. For more than a million subscriptions (50MB+ network traffic just to subscribe), you're better off downloading full blocks and filtering them in your own software. Run behind a full node - this is safe and cheap. Just remember which blocks you've read to catch up after downtime. This approach scales much better than individual address subscriptions."
+        },
+        {
+          "q": "How does BitCANN remember which domains have been claimed?",
+          "a": "BitCANN doesn't store domain state on-chain - the contract doesn't 'remember' anything. Instead, the real domain UTXO can terminate anyone's UTXO trying to add the same name again. State management is delegated to external agents who use the incentive system to penalize invalid/illegal auctions. The existence of an 'ExternalAuthNFT' from a Domain contract proves ownership. Each TLD (.bch, .xyz) gets its own category ID, and multiple people could launch competing instances for the same TLD - resolution happens off-chain through reputation."
+        },
+        {
+          "q": "How do I subscribe to Chaingraph using GraphQL in TypeScript?",
+          "a": "Check out github.com/mr-zwets/chaingraph-ts for TypeScript examples of Chaingraph GraphQL subscriptions. It shows how to set up real-time subscriptions to monitor mempools, transactions, and other blockchain data using the Chaingraph API at demo.chaingraph.cash/v1/graphql."
+        },
+        {
+          "q": "How do I integrate CashScript with WalletConnect?",
+          "a": "Use the `generateWcSourceOutputs` utility function to convert a CashScript transactionBuilder to a WalletConnect object in 4 lines: 1) Build the unsigned tx hex, 2) Decode the transaction using libauth's decodeTransaction, 3) Call generateWcSourceOutputs with the builder inputs and decoded tx. See github.com/CashScript/cashscript/issues/191 for the complete implementation and the suggested utility function."
+        },
+        {
+          "q": "How is the dust limit calculated in BCH?",
+          "a": "The dust limit formula is: `dust_limit = 444 + output_size * 3`. The dust limit doesn't change with VM limits. However, for practical safety with CashTokens, most wallets and dApps use a fixed amount: Electron Cash uses 800 sats, many dApps use 1000 sats, and General Protocols uses 1332 sats to support old-school P2MS scripts. The 546 sat figure commonly cited is only for standard P2PKH outputs. libauth has a function for calculating the exact amount per output."
+        },
+        {
+          "q": "Can CashTokens be frozen or seized by the issuer?",
+          "a": "By default, no - once CashTokens are sent to someone's P2PKH address, the issuer cannot seize them. To enable freeze/seize functionality, tokens would need to remain in a smart contract rather than being sent directly to wallets. In that model, users wouldn't be exclusive owners - they'd have 'privilege' to transfer their portion, privilege that could be revoked by an admin key. This is why BCH may not qualify for some regulated stablecoin frameworks that require freeze/seize capabilities."
+        },
+        {
+          "q": "How does having a P2SH ancestor affect 0-conf reliability?",
+          "a": "A 0-conf P2SH ancestor (contract transaction) makes descendant P2PKH 0-conf less reliable. If two users race to spend the same contract UTXO (like a DEX pool), both create valid transactions but only one wins. The loser's descendant chain (their change outputs used in subsequent txs) becomes invalid when the other tx gets mined. This is a fundamental UTXO contention issue - the 0-conf of contract outputs affects all transactions built on top of them."
+        },
+        {
+          "q": "How does using DeFi affect my 0-conf payments to merchants?",
+          "a": "If you do DeFi actions (which are P2SH/contract transactions), you end up with a chain of 0-conf P2SH transactions. When you then pay a merchant with the proceeds, your P2PKH payment has 0-conf P2SH ancestors - giving it a DSP score of 0. The merchant may demand 1 confirmation. With 10-minute blocks, there's only ~0.5% chance your DeFi chain confirms during the gap between DeFi and checkout. With faster 1-minute blocks, your DeFi would likely confirm before you finish shopping, and the merchant would see a clean P2PKH with full DSP coverage."
+        },
+        {
+          "q": "How can DEX pools avoid UTXO contention and race conditions?",
+          "a": "Several approaches: 1) Each pool requires a co-signature from a managing node that ensures it doesn't sign the same UTXO twice - permissionless but sequenced, 2) Multiple independent 'micro LPs' managed by different entities can be aggregated by services, 3) Pools can use bid contracts where users submit bids and batchers/sequencers fill them. The tradeoff is between fully permissionless (anyone can interact, but race conditions occur) and lightly permissioned (signature needed, but no races). A good middle ground: open signing - 'give me a TX and I'll fill in the sig, ensuring I don't sign the same UTXO twice'."
+        },
+        {
+          "q": "What is Small Index and how does it help DEX pool discovery?",
+          "a": "Small Index (bitcoincashresearch.org/t/a-small-key-value-index-contract/1471) is an on-chain key-value index that can tag multiple protocols per token category. It was designed for CatDex but could handle Cauldron, TapSwap, and Dutch auctions. It solves the problem of SPV wallets finding pools - if pools advertise using this method, wallets can discover them without relying on centralized servers. Pool operators would presumably use it since it increases their volume."
+        },
+        {
+          "q": "What improvements were made to multisig and contract signing on BCH?",
+          "a": "Schnorr multisig uses the same OP_CHECKMULTISIG but with smaller signatures. OP_CHECKDATASIGNATURE can be used in multi-party setups for 'opening a gate' in contracts (e.g., cross-chain swaps), and before 2022 it was used to emulate transaction introspection. The 2022 upgrade introduced native tx introspection opcodes, so contracts can now directly commit to and verify future spending transaction contents."
+        },
+        {
+          "q": "How do I debug P2SH scripts that work in Bitauth IDE scenarios but fail when broadcast?",
+          "a": "Several approaches: (1) Use CashScript's bitauthURI method on the Transaction builder to generate a URL you can inspect in the IDE. (2) Manually create a contract artifact without using the CashScript compiler, then use the TransactionBuilder and mocknet environment (example: github.com/mr-zwets/Cauldron_Swap_Test). (3) Check that your script evaluates to a non-zero value on the stack (not just empty). (4) Consider using cashlab (github.com/hosseinzoda/cashlab) which uses straight bitauth templates with tests. A common issue is scripts evaluating to empty stack instead of '1' or another truthy value."
+        },
+        {
+          "q": "Can CoinJoin be used for trading on BCH with CashTokens?",
+          "a": "Yes! With CashTokens, CoinJoin techniques can be used for trading, not just mixing coins. Previously, CoinJoin was only used for privacy/mixing since UTXOs only held BCH. Now that UTXOs can hold BCH + tokens, you can use the CoinJoin technique (combining multiple inputs and outputs in a single transaction) to atomically trade tokens. With introspection/OP_CHECKDATASIGNATURE, contracts can enforce '<=' requirements rather than just '==' like SIGHASH_SINGLE allows."
+        },
+        {
+          "q": "How can I look up a P2S (Pay-to-Script) address on a block explorer?",
+          "a": "Block explorers like 3xpl and Blockchair support a 'script-' address format where the address is the first 32 hex characters of the SHA256 hash of the output script. You can generate the URL using this shell script: `hex=0xAC; echo \"https://3xpl.com/bitcoin-cash/address/script-\"$(echo -n $hex | sed -s 's/^0x//' | tr 'A-F' 'a-f' | sha256sum | cut -b 1-32)`. This is similar to how Fulcrum indexes scripts by their hash."
+        },
+        {
+          "q": "Can BCH transactions have multiple OP_RETURN outputs?",
+          "a": "Yes, BCH supports multiple OP_RETURN outputs in a single transaction (since the May 2019 upgrade). The total combined size across all OP_RETURN outputs must still be 220 bytes or less. This allows protocols to use multiple smaller OP_RETURN outputs without consolidating everything into one. See flowee.org/docs/spec/forks/multiple-op-returns-for-bitcoin-cash/ for details."
+        },
+        {
+          "q": "What is static analyzability in BCH scripts and why does it matter?",
+          "a": "Static analyzability means being able to know what code will execute in a script before actually executing it. With proposals like OP_EVAL that can execute arbitrary stack data, static analysis becomes harder. One solution is adding an 'executable' bit to stack items - only items pushed verbatim get the bit, and operations like OP_ADD clear it, then OP_EVAL can only execute items marked executable. Trade-offs: static analyzability helps contract analysis and blockchain metrics but reduces chainanalysis resistance (which some consider a privacy benefit)."
+        },
+        {
+          "q": "How can I verify code in OP_EVAL scripts comes from a trusted source?",
+          "a": "Even with OP_EVAL as-is, you can verify code provided in unlocking data: use `OP_DUP OP_SHA256 <expected blob hash> OP_EQUALVERIFY OP_EVAL`. This hashes the provided code and verifies it matches the expected hash before executing. For code from NFT commitments, you can authenticate against the NFT's commitment value. Without verification, a locking script of just `OP_EVAL` is functionally an anyone-can-spend script since anyone can push `0x51` (OP_1) as unlocking data."
+        },
+        {
+          "q": "Where can I find the authoritative specification of BCH scripting language?",
+          "a": "The primary reference is documentation.cash/protocol/blockchain/script.html which contains the full BCH script specification. For a higher-level approach, use CashScript (cashscript.org) which compiles a more readable syntax into the actual Script opcodes."
+        },
+        {
+          "q": "What are the current standardness rules (relay limits) that differ from consensus on BCH?",
+          "a": "The 5 main standardness issues that differ from consensus: (1) max contract size, (2) max tx size, (3) max OP_RETURN size (220 bytes), (4) dust threshold, (5) output standardness (P2PKH/P2SH only). P2S addresses would resolve 2 of these. There's ongoing discussion about closing the gap between relay and consensus rules - either by making relay limits into consensus rules, or by relaxing them."
+        },
+        {
+          "q": "What are common security mistakes in BCH smart contracts?",
+          "a": "A critical mistake is checking signatures against pubkeys provided in the input without authenticating them. TapSwap almost blew up because it checked sig against pubkey provided in input but without authenticating it via a committed hash - anyone could have provided their own pubkey and signature to unlock funds. Rule: any data provided in the unlocking script (input) that affects contract logic MUST be authenticated against values committed in the locking script, typically via hash comparison."
+        },
+        {
+          "q": "Can contracts allow dynamic code execution approved by an authority after the UTXO is created?",
+          "a": "Yes! With OP_CHECKDATASIGVERIFY + OP_EVAL, you can create scripts where the bytecode to execute must be signed by a specified key. Example redeem script: `OP_TUCK <pubkey> OP_CHECKDATASIGVERIFY OP_EVAL`. This unlocks with `[...data pushes...] <sig> <bytecode> <redeem>`. This pattern allows a master key holder to approve alternative spending methods AFTER UTXOs are created, without requiring users to re-spend their UTXOs. This type of flexible multisig/oracle logic is possible today with VM limits."
+        },
+        {
+          "q": "What applications does OP_EVAL enable that wouldn't be possible otherwise?",
+          "a": "OP_EVAL enables cryptography on the stack and Zero-Knowledge Proofs (ZKPs) in script which wouldn't be possible to express within VM limits without the 100x to 1000x bytecode compression that EVAL provides. It's not just about 'saving bytes' - contracts like Groth16 ZKP verification simply wouldn't fit within script limits without function reuse. The benefit is enabling an entirely new category of applications, not just efficiency improvements."
+        },
+        {
+          "q": "How can I debug BCH smart contract transactions?",
+          "a": "Several debugging tools are available: (1) tx-debugger-4e98d2.gitlab.io - a general-purpose tx debugger that generates Bitauth IDE templates for any transaction, (2) meep (github.com/gcash/meep) - command-line tool to execute and debug transactions: `meep execute --tx=<txid> -i <input_index>`, (3) Bitauth IDE (ide.bitauth.com) - visual step-through debugger for script execution. CashScript also provides a bitauthURI method to generate IDE links from transaction builders."
+        },
+        {
+          "q": "Which JavaScript/TypeScript library should I use for BCH frontend development?",
+          "a": "Several options depending on your needs: (1) Libauth - the most comprehensive BCH library for TypeScript, handles everything including CashAddr validation, (2) mainnet-js - easier to work with if Libauth seems tricky, good for rapid development, (3) minimal-slp-wallet - used by the open-source PSF wallet at wallet.psfoundation.info, built on the Cash Stack backend infrastructure. For address validation specifically, all three support CashAddr."
+        },
+        {
+          "q": "Is there a standard P2NFT script pattern for NFT-owned UTXOs?",
+          "a": "There's no consensus 'standard' yet, but a compact pattern exists: `OP_DUP OP_UTXOTOKENCATEGORY OP_SWAP OP_UTXOTOKENCOMMITMENT OP_CAT OP_HASH160 <x> OP_EQUALVERIFY` where x is hash160(categoryId || commitment). The unlocking script pushes the input index where the NFT is placed. Wallets supporting this would scan for P2SH addresses derived from NFTs in the wallet - similar to how HD wallets scan P2PKH addresses from pubkeys. The wallet generates the expected script hash for each NFT it holds, then queries Electrum for matching UTXOs."
+        },
+        {
+          "q": "What security issues exist with NFT-owned UTXOs?",
+          "a": "The NFT UTXO itself must verify the whole transaction. If the NFT is spent with SIGHASH_SINGLE (or similar), a third party could add more inputs owned by the NFT and redirect those funds. The NFT spending contract must commit to all inputs/outputs to prevent this attack. Always ensure your NFT contract validates the complete transaction, not just a subset."
+        },
+        {
+          "q": "Can I use half the category ID for cheaper donation addresses?",
+          "a": "You only need 2^128 entropy (half the 256-bit category ID) if YOU generate the category/NFT yourself. But if you're given an NFT by someone else, they could have pre-computed a colliding pair, so you'd want the full 2^256 entropy. For self-generated donation addresses: `<0> OP_UTXOTOKENCATEGORY <16> OP_SPLIT OP_DROP <half_categoryID> OP_EQUAL` - this allows sweeping 1000s of UTXOs with just 1 signature."
+        },
+        {
+          "q": "Does Libauth work on backend Node.js or just frontend?",
+          "a": "Libauth works great on backend too. Use modern Node (v22+ LTS) with standard ESM settings. If having issues, try deno or bun as alternatives. Node issues are usually tsconfig settings. The 'tsx' library (npm package) is recommended as a wrapper around Node for running TypeScript - it handles ESM much better than ts-node and 'just works' in most cases."
+        },
+        {
+          "q": "Are LLMs reliable for writing novel BCH smart contract code?",
+          "a": "LLMs are language models that translate ideas into code, but struggle with world models and logical structure. They're bad with stuff not already done thousands of times. For novel code like ZK rollups on BCH: (1) stuff as much *relevant* context (code examples, docs) into the prompt as possible, (2) use large context windows (32K+ tokens), (3) have one AI generate code and another AI critique it. LLMs give contradictory answers depending on context, they just play along with whatever premise you give them - you decide what is true."
+        },
+        {
+          "q": "Does Blockbook have real-time subscriptions or just polling?",
+          "a": "Blockbook has a WebSocket API with subscriptions for real-time updates. You can subscribe to new blocks, address changes, and transaction events. The REST API is for one-off queries, while the WS API handles live notifications - similar to how Electrum works with its subscription system."
+        },
+        {
+          "q": "How can hardware wallets like Trezor identify contract types in DeFi transactions?",
+          "a": "BCHN is adding a 'patterns' RPC that exposes script template identification. This will let indexers like Blockbook detect which known contract types are involved in a transaction. When integrated, Trezor could display meaningful information like 'This is a CashTokens swap' instead of just showing raw script hashes. See the BCHN merge request for details."
+        },
+        {
+          "q": "Can BCH's big math opcodes handle elliptic curve operations?",
+          "a": "The May 2025 big math upgrade is good for calculations like interest rates, but EC operations would be extremely costly to emulate in script. You'd need loops for field inversion and curve equation checks, plus verification that points actually lie on the secp256k1 curve (y²=x³+7 mod p). An attacker could submit invalid points otherwise. With loops and OP_EVAL, EC routines could be defined once and reused, but native EC opcodes would be far more efficient."
+        },
+        {
+          "q": "Why add native EC opcodes when CHECKDATASIG can attest to ZK proofs?",
+          "a": "Using CHECKDATASIG for ZK proof validation requires trusting a third party to verify the proof off-chain and sign an attestation. Native elliptic curve opcodes would allow on-chain proof validation without that trust layer. The goal is trustless ZK proof verification where the BCH script itself validates the math, not relying on an external party's signature."
+        },
+        {
+          "q": "How does contract discoverability affect wallet backups?",
+          "a": "Today's model is deterministic: derive keys from seed entropy, derive lockscripts from keys, find funds locked by those lockscripts in the UTXO set. With arbitrary contracts, this determinism breaks and single-seed backups may no longer work. On-chain discoverability proposals have privacy costs and only work for wallets that implement them. It may be time to rethink what a world without deterministic discovery looks like - banks can't do seed recovery either and they function fine."
+        },
+        {
+          "q": "Why do generic contract discovery protocols have poor UX?",
+          "a": "Generic solutions that try to work for any contract type result in generic UX that can't be used by many wallets. Better approach: have actual products where contract devs work directly with front-end/wallet devs for specific integrations. When you have that collaboration, discovery becomes easy - just build GUI specifically for one or two contracts. The best UX comes from specific implementations, not universal protocols."
+        },
+        {
+          "q": "Can I store more than 220 bytes of data on-chain by using inputs instead of OP_RETURN?",
+          "a": "Yes. Use OP_DROP at the start of your redeem script, then push arbitrary data before the redeemScript in your unlock: `<signature> <publicKey> <arbitrary_data> <redeemScript>`. The script drops the data and proceeds with normal validation. This bypasses the ~220 byte OP_RETURN limit and can be used for storing template parameters, audit data, etc. Downside: requires creating an initial contract UTXO first."
+        },
+        {
+          "q": "How should we approach proposing new opcodes for ZK proofs?",
+          "a": "Don't propose opcodes as the first step - that's wishful design that often fails. Instead: (1) modify a full node privately, (2) make the actual ZK script work completely, (3) test thoroughly until it's not instantly hackable, (4) then propose what was actually needed. What if one step is too expensive? What if ZK is irrelevant for your use case? What if something fails you haven't thought of? Build first, propose second."
+        },
+        {
+          "q": "Can BCH NFTs be used for event tickets or lottery systems?",
+          "a": "Yes. Flow: participants provide BCH address, issuer mints NFT with unique commitment (date + sequence number). To redeem, transfer NFT back to issuer (like an admission slip). NFTs can be traded on marketplaces like Cauldron, via TapSwap auctions, or even peer-to-peer in person. No smart contracts needed for trading - just transfer the asset between wallets. Similar to concert ticket use case."
+        },
+        {
+          "q": "What is the scope of DSProof protection?",
+          "a": "DSProof is a merchant tool, not a safety system. It's opt-in and covers most real-life P2PKH transactions. Merchants can decide to only accept P2PKH for instant 0-conf, requiring confirmation for P2SH spends. Wallets can implement this default. Double-spends require special software - they don't happen accidentally. DSP detects P2PKH double-spend attempts within ~1 second, but P2SH scripts are not covered."
+        },
+        {
+          "q": "What's a good Python stack for BCH payment integration?",
+          "a": "Use pybitcash (bitcash.dev) - it's well maintained by a reputable developer. For indexing, Fulcrum is best-in-class. Use blockchain.address.get_mempool to detect 0-conf transactions in the mempool for fast payment confirmation. Long-term, libauth (currently TypeScript) may get Rust bindings with Python wrappers. For reference, check minisatoshi.cash for alternative service options."
+        },
+        {
+          "q": "How do I fund a CashScript contract?",
+          "a": "Use Contract.address to get the contract's P2SH address, then send funds to it from any wallet. Important: make sure you're on the correct network - chipnet and testnet4 and mainnet have different address prefixes. If getBalance() shows 0 but explorer shows funds, you're likely querying the wrong network. The contract address is derived from the redeem script hash - same script with different constructor args gives different addresses."
+        },
+        {
+          "q": "How does the UTXO model differ from EVM for smart contracts?",
+          "a": "Think of UTXOs as individual cash bills. Each bill has a 'locking script' - a codified checklist of constraints. Key difference: EVM code encodes actions on accounts; UTXO code encodes limitations. **Anything not constrained is allowed** - this is the root of footguns. P2PKH constrains: signature required + pubkey hash must match. With introspection opcodes you can add constraints like '50% must go to address A'. But if you don't constrain the other 50%, it goes wherever the transaction creator decides."
+        },
+        {
+          "q": "What's a major security footgun with UTXO contracts?",
+          "a": "If not constrained, all UTXOs for a contract can be spent in one transaction, and value from one UTXO can satisfy constraints for ALL inputs. Example: contract requires '1000 sats to address X as first output'. Attacker spends 10 contract UTXOs in one tx - that single 1000 sat output satisfies all 10 inputs, attacker keeps 90% of the value. Solution: constrain based on the input's own value, not fixed amounts, or use per-input verification patterns."
+        },
+        {
+          "q": "Should I use chipnet or testnet4 for BCH development?",
+          "a": "Chipnet is recommended by default - it has better tooling, explorers, and faucets. It upgrades 6 months before mainnet to test upcoming features. Testnet4 is the conservative general-purpose testnet. For time-based contracts (timelocks, etc.), use regtest - you can mine blocks on demand to simulate time passing. Some devs test directly on mainnet with small amounts for final validation."
+        },
+        {
+          "q": "How is a CashScript contract address derived?",
+          "a": "The contract address is the hash160 (for P2SH20) or hash256 (for P2SH32) of the redeem script, encoded with the network prefix. Same contract code with different constructor arguments produces different addresses. If your address isn't consistent between runs, check that constructor args (pubkeys, timestamps, etc.) are identical. You can verify by deriving the address manually from the compiled bytecode."
+        },
+        {
+          "q": "Why does contract.getBalance() return 0 when explorer shows balance?",
+          "a": "Network mismatch - your app is querying a different network than you funded. Common causes: (1) chipnet vs testnet4 confusion, (2) Electrum server not synced or offline, (3) expired SSL certificate on server. Debug by verifying the address matches across your code and explorer. Use `npm install cashscript@next` for updated chipnet servers. You can specify custom servers: `new ElectrumNetworkProvider('chipnet', 'chipnet.bch.ninja:50004')`."
+        },
+        {
+          "q": "Can I use CashScript from Python without npm/TypeScript?",
+          "a": "Yes. mainnet.cash provides a REST API with built-in escrow contracts, and you can evaluate general CashScript contracts through it. There's a maintained Python API at github.com/mainnet-cash/mainnet-python-generated. This lets you call CashScript features from Python without touching npm. You can also call the CashScript compiler separately and use the bytecode with any library."
+        },
+        {
+          "q": "Does BCH script use two's complement or sign-magnitude for numbers?",
+          "a": "Stack items use 'Script Numbers' which is sign-magnitude encoding (sign bit in the high bit of the last byte). Other protocol parts differ: opcode parameters use unsigned int, C++ implementation uses two's complement for signed ints. The 2022 8-byte integer upgrade excluded one value (-2^63) that fits in 8-byte two's complement but needs 9 bytes in script number format. With the 2025 big integers upgrade, you can operate on values up to 10000 bytes."
+        },
+        {
+          "q": "Where can I find advanced CashScript examples beyond the docs?",
+          "a": "Several sources: (1) Emerald DAO project at 0353f40e.gitlab.io/emerald-dao/, (2) awesomebitcoin.cash/#script for curated script resources, (3) Bitcoin Cash University YouTube channel with tutorials on contracts like Badgers and FundMe, (4) cashscript.org/docs/showcase for production projects. You can submit PRs to add your projects to these lists."
+        },
+        {
+          "q": "Should I use mainnet-js or libauth for my BCH project?",
+          "a": "Depends on needs. mainnet-js: automatic UTXO selection, automatic change outputs, easiest for simple BCH/token sends. Bundle is now 270 kB gzipped (down from 737 kB). But has bundler/webpack compatibility issues. libauth + cashscript: lighter combo, no bundler headaches, but more manual work. If you don't need wallet functionality or ElectrumX, pure libauth is cleanest. Many devs prefer libauth + cashscript as their SDK combo."
+        },
+        {
+          "q": "How can I prove I created something at a specific date on BCH?",
+          "a": "Put a hash in OP_RETURN - this has worked since 2009. Services like memo.cash let you easily write hashes/messages to the chain. TokenTiger.com evolved from document attestation. The main use case is defensive: create 'prior work' so nobody can later claim IP over useful stuff. Some early Bitcoiners used document hashes as public keys and sent funds there (unprunable attestation). There's little commercial market for pure attestation, but it's useful as a component in larger applications."
+        },
+        {
+          "q": "What are the trust concerns with proposed BCH ZK rollups?",
+          "a": "Current proposals rely on validator multisig where 2-of-3 validators could collude to take all funds. Without native ZK proof verification (like BitVM provides for BTC), you need trusted parties. The 'challenge' mechanism relies on stake penalties, but if money is gone, challenges are worthless. The bigger issue is lack of native verification for commitment proofs themselves. Current staking models exist because there's no BitVM equivalent on BCH yet. Building prototype first before proposing opcodes is recommended."
+        },
+        {
+          "q": "What's new in CashScript v0.11.0?",
+          "a": "Major release with debugging capabilities for the transaction builder - you can now use mocknet and Bitauth IDE for local testing/debugging. This greatly improves developer experience. The release was in development for over half a year with multiple pre-releases to iron out edge cases. Contains breaking changes, check the migration-notes on cashscript.org. Rosco's Bliss talk covers the new features and capabilities."
+        },
+        {
+          "q": "How do time-based locks work with MTP (Median Time Past)?",
+          "a": "MTP lags behind real time by ~1 hour by design (median of last 11 blocks). For OP_TXLOCKTIME contracts, nLocktime is validated against MTP, not wall clock time. To calculate MTP: get last 13 block headers via Fulcrum, decode timestamps, take the median. Your contract logic will lag with MTP. There's no concept of 'now' in contracts - answering 'now' trustlessly is hard. You can account for offset in script by adding ~330 seconds to approximate."
+        },
+        {
+          "q": "Can a transaction with future lock-time enter the mempool?",
+          "a": "No. A tx with lock-time in the future will not be accepted in the mempool. You can assume in script that the lock time is always in the past (relative to MTP). The node validates nLocktime against MTP before accepting the transaction. This means you can't pre-broadcast time-locked transactions - they must wait until MTP passes the lock-time."
+        },
+        {
+          "q": "How does tokenaut.cash track DeFi TVL and contract transactions?",
+          "a": "It depends on the particular contract. Some contracts have OP_RETURN markers that identify their type. Some have constant addresses that can be monitored. Some can be tracked by NFTs that they emit (like Furu's wrapped tokens using minting NFTs). There's no universal method - each contract type has its own identification pattern. The BCHN 'patterns' RPC will help explorers detect known contract templates."
+        },
+        {
+          "q": "Can contracts have mutable parameters stored in NFT commitments?",
+          "a": "Yes. A contract can store current benefactor/parameters in an NFT commitment and let authorized parties mutate state with a signature. With OP_DEFINE, you can get NFT commitment via introspection, define a program from it, and invoke it. Security caveat: invoked code has access to full stack (no stack isolation). To use safely: (1) ensure stack is empty before invoking, (2) verify expected number of return items. This enables 'upgradable' contracts where spending paths change without moving funds."
+        },
+        {
+          "q": "Why consider reducing BCH block time from 10 minutes?",
+          "a": "Multi-coin wallets don't implement 0-conf properly for BCH - they wait for confirmation, making BCH seem slow. With 1-minute blocks, even if wallets wait for 1 confirmation, it's still fast. This prevents losing potential users to bad experience. Native BCH wallets handle 0-conf fine via DSProof, but we can't control external wallet behavior. The 10-minute time was arbitrary in the original design. Faster blocks also improve DeFi UX for contracts requiring confirmations."
+        },
+        {
+          "q": "What are MEV (Miner Extractable Value) contracts on BCH?",
+          "a": "Contracts using anyone-can-spend transactions that pay small 'gas fees' claimable by anyone. Example: unspent.cash perpetuity payments where monthly installment transactions can be built by anyone using only introspection logic, no signatures. Dozens of such contracts exist. AMM contracts like Cauldron are incompatible with zero-conf because multiple users/bots can compete for the same UTXO. See bitcoincashresearch.org for a catalog of MEV contracts."
+        },
+        {
+          "q": "Would faster blocks break existing block height-based timelocks?",
+          "a": "No. The approach: height locktime would continue to be based on 10-min chunks, so nothing breaks. Legacy contracts use block heights that map to 10-min equivalents post-upgrade. A new locktime field would be needed for contracts wanting increased height precision (1-min resolution). MTP-based timelocks remain unaffected. The CHIP draft documents these compatibility measures."
+        },
+        {
+          "q": "Are there libraries for BCH DeFi trading without using DEX websites?",
+          "a": "Yes. VegaBCH (github.com/hosseinzoda/vegabch) is a library for doing DeFi that doesn't require using the primary DEX websites. Trading bots already use these libraries today. This enables programmatic trading and arbitrage without relying on any centralized frontend. The contracts themselves are on-chain and accessible by anyone."
+        },
+        {
+          "q": "Are complex MEV-resistant DEX designs better than simple anyone-can-spend AMMs?",
+          "a": "Not necessarily. Simple anyone-can-spend AMMs work today in production - Cauldron and Moria have ~1k BCH TVL. There are 0 deployments of complex queuing systems. Complexity is the enemy of security. Ease of development and deployment is BCH's advantage. Even if you build a queuing AMM, faster blocks would still improve it. Like introspection opcodes - we had covenants with CHECKDATASIG but added introspection because it makes everything easier."
+        },
+        {
+          "q": "Is decentralization always the goal for crypto projects?",
+          "a": "No - decentralization is a means to an end, not a goal itself. It's a gradient where the extremes are clear but everything else depends on purpose. A practical goal might be: 'avoid government or other big company being able to control my stuff.' In DeFi context, decentralization means reducing rug-pull risk by the LP. Some centralization is valuable today (like Cauldron using centralized signing for MEV protection), but BCH is one of the few chains where fully trustless, non-custodial, decentralized contracts are possible."
+        },
+        {
+          "q": "Does formal verification require immutable state?",
+          "a": "No, formal verification has no relation to mutable vs immutable state. When people bring up 'formal verification' concerns about proposals like OP_EVAL, they rarely go into details about what specifically they're looking for. Without concrete requirements, it's hard to evaluate whether a proposal helps or hinders formal verification. The debate often becomes vague hand-waving on both sides."
+        },
+        {
+          "q": "What is the @bch-wc2 connector for CashScript projects?",
+          "a": "The @bch-wc2 connector packages provide a unified interface for CashScript-based projects that works identically for both privkey-based apps and WalletConnect2-based keyless apps. This erases the border between local development (with private keys) and web deployment (using wallet connections). The mainnet-js and CashScript extensions work seamlessly with these connectors to share the same development flow locally and on web."
+        },
+        {
+          "q": "How can recurring/subscription payments work in BCH without a middleman?",
+          "a": "Use xpub instead of single address. The receiver sends an xpub in the payment request. The payer's wallet stores that xpub and pays to the next derived address each month automatically. No server middleman needed - the wallet handles derivation locally. This is privacy-friendly (new address each payment) and only needs one-time setup. Flowee Pay has implemented serverless repeated payments this way."
+        },
+        {
+          "q": "What are the tradeoffs between push and pull payment schemes for subscriptions?",
+          "a": "Push (sender initiates): Lower trust requirements, sender keeps full control, but relies on sender being present/available and provides less info to receiver about future payments. Over millions of users, there will be missed/late payments. Pull (receiver initiates): Allows receiver to take action (stronger incentive), can see insufficient funds and send reminders, but leaks more information and typically requires oracle for fiat-denominated amounts. Pull can be done trustlessly using vault + NFT authorization tokens, but private pull is harder to achieve."
+        },
+        {
+          "q": "Why are recurring payments important for BCH adoption?",
+          "a": "Most people spend ~80% of their value in recurring payments (by volume). Having recurring payments that work 'in the wild' would be a major step up from where BCH is today. This includes rent, subscriptions, loan payments, etc. Solutions need to handle: fiat denomination (oracle needed), missed payment handling, and cancellation flows. Physical goods subscriptions add complexity with delivery skipping, discounts, and inventory management."
+        },
+        {
+          "q": "How do revocable token annuities work for subscriptions?",
+          "a": "The subscriber locks funds in a contract that releases payments on a schedule (e.g., monthly). The payments are 'anyone-can-spend' after timelock, so the service or anyone can submit them. The subscriber holds an NFT that lets them cancel - spending the NFT drains remaining funds back to the subscriber. This allows pull-style automatic payments while giving the subscriber a clear revocation mechanism. See 'Unspent Phi v3' timelocking token-aware contracts for implementation details."
+        },
+        {
+          "q": "Can one subscription vault serve multiple services?",
+          "a": "Yes - you could have one 'streaming account' vault where Netflix, Spotify, etc. can each pull their specific amounts at their specific intervals. This is achieved by issuing multiple NFT authorization tokens (one per service) from the same vault. Each NFT encodes the service's allowed pull amount and interval. This is more practical than maintaining separate vaults per service. The vault holder controls which services have keys."
+        },
+        {
+          "q": "Can recurring payments avoid oracles for fiat amounts?",
+          "a": "Yes, multiple approaches: (1) Use stablecoins like MUSD/PUSD instead of BCH - contract pulls fixed stablecoin amount, (2) User sets maximum sats allowed per pull (adjustable by user over time), (3) Push model with user confirmation - wallet shows pending payments with calculated fiat values, user clicks 'Pay All' only if amounts match expectations. The push confirmation model adds one click but eliminates all oracle trust."
+        },
+        {
+          "q": "Is there market demand for BCH-denominated subscription services?",
+          "a": "Based on 3+ years running the largest monthly recurring payment protocol on BCH, there's zero market demand for coin-denominated subscriptions. Users want fiat-denominated payments. This is why stablecoins (MUSD, PUSD) are important - the unspent annuities protocol can work with any CashToken, so anyone can create monthly annuities denominated in their preferred stablecoin with withdrawals/cancellations."
+        },
+        {
+          "q": "With BCH Functions CHIP, can I execute a script from a neighboring input as a function?",
+          "a": "Yes, you can define a script pushed as data in a neighboring input as a function and execute it in the context of the current script. Using OP_RETURN outputs to store reusable function code would require a separate 'read-only inputs' extension - OP_RETURNs can never be inputs since they're unspendable, but the concept of referencing without spending is interesting for future proposals."
+        },
+        {
+          "q": "What are read-only UTXOs and why are they problematic?",
+          "a": "Read-only UTXOs (from TXv5 proposal) are inputs that don't get spent when referenced in a transaction. The idea allows reading data/code from UTXOs without consuming them. Problems: (1) Breaks current assumption that NFTs spent as input without appearing in output are burnt - could break existing contracts, (2) UTXO set pollution since they never get cleaned up, (3) Introduces global state which hurts scaling. The concept is interesting but this specific design is flawed."
+        },
+        {
+          "q": "Why are anyone-can-spend subscription contracts more robust than app-based push?",
+          "a": "If a subscription contract is public and anyone-can-spend (after timelock), then any of 5B+ phone users worldwide can earn a few thousand sats by executing the scheduled payment. This hyper-redundant approach is far more robust than relying on one phone's background sync or Push API (which browsers break in unique ways). Apple and Google actively obstruct payment mechanisms that threaten their revenue, making app-based solutions fragile. The trustless on-chain approach is envied by devs in other ecosystems."
+        },
+        {
+          "q": "Is BCH's scheduled payment capability unique compared to EVM chains?",
+          "a": "Yes. You can't hardcode an MEV executor fee and expect it to work long-term on EVM chains due to volatile gas costs. While EVM chains have 'click button to execute scheduled transaction' patterns, those are typically for one-time MEV fees (unlock, swap, mint). BCH uniquely enables fire-and-forget recurring payments for years or decades with no set executor - the combination of script introspection + permanently low fees doesn't exist elsewhere. BU's EVM project might be the only other chain where BCH-style recurring payments could work."
+        },
+        {
+          "q": "How should I generate cryptographic random numbers in JavaScript?",
+          "a": "Don't use Math.random() for generating keys, seeds, or R values - it's predictable and could lead to people guessing your seed. Use the Web Crypto API's crypto.getRandomValues() instead. Note: this requires HTTPS/secure context (SSL connections). For Node.js, use the crypto module's randomBytes(). The key requirement is that the random source be cryptographically secure (CSPRNG), not just statistically random."
+        },
+        {
+          "q": "Does BCH have its own WalletConnect standard?",
+          "a": "Yes, BCH has its own wallet connection standards independent of the Reown/WalletConnect network. The WalletConnect network is permissioned and has its own token, which doesn't align with BCH's permissionless philosophy. BCH wallets use different connection protocols, and there are WC2-compatible packages (@bch-wc2) that provide unified interfaces for CashScript-based projects, allowing the same code to work with both local development (private keys) and web deployment (wallet connections)."
+        },
+        {
+          "q": "What are the benefits of using libauth templates for DeFi modules?",
+          "a": "The vox/unspent library architecture uses libauth templates with helper functions to build transactions, with libauth doing all the heavy lifting (no CashScript SDK). This makes modules portable - each is just a template and about a page of helper code. The templates could potentially be integrated into other wallets like Flowee Pay or Electron Cash once libauth-style libraries are available in those ecosystems. This enables cross-DEX functionality like getting real-time quotes across multiple protocols in a single transaction."
+        },
+        {
+          "q": "How do NPM supply chain attacks affect crypto wallets?",
+          "a": "NPM package compromises are becoming a serious problem - phishing emails have compromised many projects recently. For crypto wallets, attackers can inject code to steal private keys or drain funds. Mitigations include: (1) Pin exact package versions (not just major.minor), (2) Run dev environments in Docker containers, (3) Use scripts to check lockfiles for known compromised package+version combinations, (4) AI-based package scanners are emerging. NPM can remove affected versions once reported."
+        },
+        {
+          "q": "Is UTXO model more secure than EVM account model?",
+          "a": "From a practical attack surface perspective, yes. In EVM/Web3, blind signing is routine - unless you constantly check approvals, wallets can be emptied through previously-approved malicious contracts. There are 'infinite attack vectors.' In UTXO model, each transaction explicitly lists inputs and outputs - you can't approve unlimited future spending. The UTXO model has fewer ways for attackers to exploit previously-granted permissions."
+        },
+        {
+          "q": "Who should verify contract templates for safety?",
+          "a": "Normal users can't tell if a template will rug them - they're still 'blindly trusting things.' The practical solution is trusted verification by wallet makers. Your wallet trusts templates approved and verified by its development company and refuses to use unapproved templates. This moves trust to wallet makers, which works because reputation is a well-understood concept. Users naturally trust their wallet already."
+        },
+        {
+          "q": "Why is Solidity compared to JavaScript for security concerns?",
+          "a": "Solidity is 'the JavaScript of the blockchain world' - low barrier to entry means super high adoption, but it's hard to cover everything that can go wrong. The drive to ship quickly means security corners get cut. In EVM, even with hardware wallets like Ledger, blind signing is routine. Cold storage coins mixed with blind signing creates dangerous combinations. Unlike BCH/BTC where users don't sign smart contracts constantly, EVM culture requires continuous interaction (staking, yield farming, trading), multiplying risk exposure."
+        },
+        {
+          "q": "What changed between transaction version 1 and version 2?",
+          "a": "Transaction version 2 only changed the interpretation of the nSequence field, not the transaction format itself. It was introduced via a soft fork (BIP68). To use the relative timelock opcodes that interpret sequence data, you must set the transaction version to 2. The format is identical otherwise - 'it's all a bit fucked up now' because they didn't change the actual structure, just the meaning of one field. See reference.cash/protocol/forks/bip-0068 for details."
+        },
+        {
+          "q": "How do BCH covenants solve multisig malleability for atomic swaps?",
+          "a": "In multisig, either party can re-roll their signature to change the txid, breaking any descendant transaction that depends on the exact parent txid. BCH covenants solve this the SIGHASH_NOINPUT/SIGHASH_ANYPREVOUT way: descendant transactions commit to the *contents* of parent TXs without committing to specific prevout txids. If an ancestor's txid changes, you simply update the descendant's prevout reference and it remains valid. This enables BCH-XMR atomic swaps using covenants instead of multisig."
+        },
+        {
+          "q": "How can I check the OP_RETURN field of a transaction?",
+          "a": "For a single transaction with known txid: (1) Use sickpig's explorer (explorer.bch.ninja) - the JSON tab shows full parsed transaction data, (2) Blockchair also reports OP_RETURN details. Programmatically: an OP_RETURN is an output beginning with 0x6a. Parse the raw transaction with libauth and filter the outputs list. If you have a full node, you can get the raw transaction data directly via RPC."
+        },
+        {
+          "q": "Should I store addresses as strings or hashes in an exchange database?",
+          "a": "Store hashes and generate address strings for user UX on-the-fly. This is especially useful since you may want to support multiple address types (BTC legacy, BCH CashAddress, BCH token CashAddress). If you already store address strings, that works too - it just moves the encoding/decoding elsewhere. For confirmed blocks, use verbosity 2 RPC and read addresses from vout. Note: BTC parsers will misinterpret CashToken data as part of the output script."
+        },
+        {
+          "q": "How do I calculate 10^x in BCH Script?",
+          "a": "Two main approaches: (1) Lookup table - push all possible values to stack and use OP_PICK to select. Works well for known bounds (e.g., x <= 18 for token decimals). (2) Binary decomposition - use CAT for cheap 8^x, or conditionally multiply by 10^16, 10^8, 10^4, 10^2, 10 based on binary decomposition of x. The binary approach saves ~30 bytes but is more complex. With the 2026 upgrade adding loops, exponentiation becomes trivial: just <10> OP_MUL in a loop with counter."
+        },
+        {
+          "q": "What new features are in CashScript v0.12.0?",
+          "a": "CashScript v0.12.0 includes: (1) Removal of the deprecated Transaction Builder, (2) Several small breaking changes for cleaner API, (3) getVmResourceUsage() function to measure VM resource usage (opcost, stack depth, etc.), (4) New TransactionBuilder safety options for better error handling. The version consolidates the API and provides better tooling for contract developers."
+        },
+        {
+          "q": "Can I create mocknet wallets with the CashScript SDK like in the playground?",
+          "a": "Yes - the playground is open source. Look at github.com/CashScript/cashscript-playground for the wallet-related code. TLDR: Either CashScript SDK supports it directly, or you can do it with libauth and/or mainnet-js. For testing contracts that need both contract UTXOs and user UTXOs, reference unspent.app and fbch which are open source and use a mix of mocknet and regtest with mainnet-js."
+        },
+        {
+          "q": "Are mainnet-js and CashScript SDK compatible?",
+          "a": "Yes, but you'll need glue code to make them talk to each other. There are three UTXO type formats: CashScript's format, mainnet-js format, and the common electrum-cash format underneath. You can create a wallet with mainnet-js and use its UTXOs with CashScript SDK to interact with contracts - just need to convert between the formats."
+        },
+        {
+          "q": "How does the public chipnet faucet work?",
+          "a": "Coinbase outputs are sent to an anyone-can-spend contract: `<42> OP_NUMEQUAL`. The p2sh20 base58 address is 2N28ZR5MgBoKq6sBceEoGvTuGs1wfZeXvFF. After the 100-block coinbase maturity timelock, anyone can claim them using a CashScript contract like `require(answer==42)`. This creates a public faucet where chipnet miners donate coins that developers can freely claim for testing."
+        },
+        {
+          "q": "How does Nostr achieve censorship resistance?",
+          "a": "The censorship-resistant property comes from the simplicity of the protocol. Spinning up a relay is super simple. Even if you got banned from all popular relays, you can run your own relay and your friends/followers can connect to it. Notes are transport-agnostic - you could even have a local 'Nostr mesh' where each client is both client and relay. If fully banned, you could broadcast your new relay URL via blockchain OP_RETURN using your Nostr identity key."
+        },
+        {
+          "q": "Where can I find BCH opcode documentation?",
+          "a": "Several resources: (1) vm.cash - interactive opcode reference with debugging tools, (2) documentation.cash - lists operation codes, (3) flowee.org/docs/spec/blockchain/script/ - comprehensive opcode descriptions. All these sites render the same core documentation slightly differently. vm.cash is particularly useful for interactive testing."
+        },
+        {
+          "q": "Is there a JavaScript library to connect directly to BCH P2P network?",
+          "a": "Yes - p2p-cash (github.com/mainnet-pat/p2p-cash) allows JS apps to connect directly to the BCH P2P network. However, working with Fulcrum is much more convenient for both developers and users without sacrificing decentralization too badly. If push came to shove, we'd see more Fulcrum servers spin up or true SPV wallets like Flowee Pay get more popular."
+        },
+        {
+          "q": "Why is wallet sync an underappreciated problem?",
+          "a": "Wallet sync is harder than it appears. Options include: (1) Indexer servers like Fulcrum - convenient but requires server infrastructure, (2) SPV with Merkle blocks (Flowee Pay approach) - works regardless of wallet size, no need to subscribe to addresses. Merkle approach has network activity stable even for a million addresses, but historically had slow startup (now solved in Flowee Pay). Satoshi wrote about wallets connecting to servers 'like connecting to a mail server.' The gap problem exists when optimizing address subscriptions."
+        },
+        {
+          "q": "How can SPV wallet initial sync be optimized?",
+          "a": "During initial sync, get the header merkle root from elsewhere so the user can start using the wallet right away. In the background, download the headers to compute and verify the root yourself. Fulcrum has blockchain.block.headers method returning all headers between start_height and count. When specifying cp_height, you get a merkle proof against a root at the specified height. This allows gradual verification without blocking user experience."
+        },
+        {
+          "q": "Does subscription.v3.cash support cancellation?",
+          "a": "Yes - the vox.cash subscription.v3.cash contract has withdrawal capability, unlike the basic annuity contracts that just drip funds on intervals without cancellation. The improved design uses NFTs - the service holds an NFT that authorizes pulling funds, and when you want to cancel you burn their NFT. This enables multi-service subscription pools where multiple services pull from the same fund pool with individual authorization tokens."
+        },
+        {
+          "q": "Why is Flipstarter called 'not actually a contract'?",
+          "a": "While Flipstarter is advertised as an 'assurance contract,' once the money is sent, the obligation on the receiver drops to zero. The only enforcement mechanism is social pressure - the opposite of a contract. A recipient could theoretically borrow BCH to self-fund their campaign, pocket real donations, and do minimal work. A solution is paying a fee to an overseeing party for better proposals, follow-up, progress checking, and weekly payouts instead of lump-sum."
+        },
+        {
+          "q": "Why use Noble curves instead of libauth for browser extensions?",
+          "a": "Libauth has top-level await statements that break Chrome extension MV3 (Manifest V3) style design. Noble curves (paulmillr.com/noble/) provides an alternative for building BCH transactions in JavaScript without these compatibility issues. BCH's Schnorr implementation is somewhat unique, so if you need a Schnorr example, seek help from BCH developers who've worked through the challenges."
+        },
+        {
+          "q": "How are Vox DeFi apps structured?",
+          "a": "Every Vox app consists of three parts: (1) A libauth template defining the contract logic, (2) A builder function for transaction construction, (3) A UI page for user interaction. This modular architecture makes the contracts portable - each is just a template and about a page of helper code. Technical breakdowns are in the libauth templates, with general audience READMEs in each app directory."
+        },
+        {
+          "q": "What are contract pattern fingerprints in BCHN?",
+          "a": "BCHN merged support for P2S contract tracking via pattern fingerprints. A contract 'pattern' is obtained by stripping data pushes (replacing them with push counts), and the 'fingerprint' is the hash of that pattern. This means contracts with the same executable bytecode but different parameters (like different AnyHedge contracts with different keys) will have the same fingerprint. Useful for finding all instances of a contract type. Use getrawtransaction with verbosity 2 and the 'true' flag for patterns."
+        },
+        {
+          "q": "How can I find P2S contracts with the same pattern but different parameters?",
+          "a": "Two approaches: (1) If you know the exact contract, use Electrum script hash subscription - look it up via electrum-cash-protocol.readthedocs.io script-hashes. (2) For finding all contracts of a type regardless of parameters, use BCHN's new fingerprint feature which strips data pushes. For example, each AnyHedge contract has a different address due to specific parameters, but they all share the same fingerprint because the executable bytecode is identical."
+        },
+        {
+          "q": "How does BCH prevent infinite loops from locking up nodes after enabling loops in Script?",
+          "a": "The May 2025 VM limits upgrade changed script limits from naive 'opcode count' and 'bytesize' to a compute budget system. Each byte in a script gets 800 compute budget, and different opcodes have unique costs depending on their arguments/inputs. A loop (or any script) will terminate with failure and be invalid if it exceeds the compute budget. This means loops can pack logic more densely, but developers must ensure their logic isn't too dense per byte. Additionally, BCH loops are bounded (not GOTO-style) - they don't need explicit exit conditions because they're inherently finite."
+        },
+        {
+          "q": "Does BCH Script use two's complement for signed integers?",
+          "a": "No - BCH VM uses signed magnitude representation, not two's complement. In signed magnitude, the highest bit indicates sign (0=positive, 1=negative), while the remaining bits represent the absolute value. For example, 0x8d (binary 10001101) in signed magnitude is -13 (not -115 as in two's complement). This is why converting bytes to integers may give unexpected results if you're checking against standard hex-to-decimal converters. Use BitAuth IDE (ide.bitauth.com) to sanity check these conversions."
+        },
+        {
+          "q": "How does BCH's state model differ from Ethereum's global state?",
+          "a": "On Ethereum, global state is a huge RocksDB-based key-value database - storage reads and writes cost extra gas, but you only pay for the state slots you access. On BCH, state is local and transferrable via token commitments - when you need state, you include the tokens carrying that state and pay for their presence. In both cases, you don't pay for state you don't care about. The key difference: BCH state is explicitly carried in UTXOs, while Ethereum state lives in a global database that contracts read/write to."
+        },
+        {
+          "q": "Are BCH transactions getting larger over time?",
+          "a": "Yes, metrics show BCH transactions are becoming 'fatter' - primarily on the input side (more inputs per transaction). This isn't necessarily bad - it likely indicates more DeFi usage and feature-rich transactions. After P2S (Pay to Script) adoption, transaction weight might shift more toward the output side. With future improvements like cross-input signature aggregation and wallets supporting alternatives to P2PKH, the 'fat' could be trimmed significantly."
+        },
+        {
+          "q": "How can blockchain explorers detect and track specific contract types on BCH?",
+          "a": "BCHN 28.0.2 added contract fingerprint support to its RPC/REST APIs. Add a 'true' parameter after verbosity in getrawtransaction or getblock calls to enable patterns/fingerprints. This allows indexers like Chaingraph and visualizers like TxStreet to detect contract types. A repository of known fingerprints is maintained at gitlab.com/0353F40E/script-bytecode-fingerprints - useful for identifying specific contracts like AnyHedge, Cauldron, etc."
+        },
+        {
+          "q": "Can you hash introspection values in BCH covenants instead of checking individual values?",
+          "a": "Yes - this is basically emulating CheckTemplateVerify (CTV). You can hash multiple introspection values together and match against the hash instead of specifying and checking individual introspection values. This makes the contract bytecode smaller when you need to verify many transaction properties. See the BitAuth IDE example at ide.bitauth.com/import-gist/17f490fc177bec0f5631009f3cfbe91f for implementation."
+        },
+        {
+          "q": "Can smart contracts send to RPA (Reusable Payment Addresses)?",
+          "a": "RPA lets senders derive receiver addresses that look like typical P2PKH. A contract could lock UTXOs to an RPA-derived address where the private key holder can spend. However, if a contract implements RPA verification for payouts (checking that outputs go to valid RPA destinations), it would destroy most privacy features - the contract reveals the linkage between the RPA and the output address. Using a fresh standard HD address is simpler and more private for escrow/swap situations."
+        },
+        {
+          "q": "What is the relationship between CashScript and the BCH VM?",
+          "a": "CashScript is a compiler - a high-level language that compiles to bytecode for the BCH VM to execute. The VM operates like assembly code with push/pop stack operations. The script hash gets embedded in transactions. CashScript makes it easier to write contracts without dealing with low-level opcodes. Think of it like how Solidity compiles to EVM bytecode, except BCH's VM is stack-based rather than account-based."
+        },
+        {
+          "q": "What's the key concept to understand BCH smart contracts?",
+          "a": "Understand lockscripts well, and you'll have 90% of the correct picture. The critical insight: smart contracts don't *make* actions - they only verify that actions in a transaction conform to the contract specification. Someone has to build the transaction and broadcast it; the contract just validates that the transaction is valid according to its rules. It's essentially a giant checklist that must pass for the transaction to be valid."
+        },
+        {
+          "q": "Why might Electrum/Fulcrum connections fail intermittently from the same IP?",
+          "a": "You might be hitting the `max_clients_per_ip` limit on the Fulcrum server. This commonly happens when running multiple applications simultaneously - Electron Cash, Cashonize wallet, CashScript playground, and other web apps all connecting to the same Electrum server. Switching IPs helps temporarily, but once all clients reconnect from the new IP, it fails again. Restart applications to close stale connections."
+        },
+        {
+          "q": "How do I fund a contract in the CashScript Playground?",
+          "a": "The CashScript Playground defaults to 'mocknet' - a fake, local mock network environment. On mocknet, use 'add random utxo' to simulate funding - this creates fake UTXOs for testing. To test with real BCH, change the network to 'chipnet' or 'testnet4' in the 'new contracts' tab, then send real BCH to the contract address. The 'add random utxo' button only works on mocknet."
+        },
+        {
+          "q": "Are there existing contracts for recurring payments on BCH?",
+          "a": "Yes, several implementations exist: (1) Mecenas - a perpetual payment contract where anyone can trigger periodic payments to a recipient, (2) CashChannels - a payment channel system, and (3) Unspent.app's annuity contracts for scheduled payments. Search for 'Mecenas BCH' for the covenant-based approach, or check Unspent.app for their annuity/recurring payment tools. These use timelocks and covenants to enforce payment schedules."
+        },
+        {
+          "q": "What are the transaction size limits on BCH?",
+          "a": "BCH has a 100KB standardness limit for relay (transactions larger won't propagate through the mempool by default) and a 1MB consensus limit (maximum possible in a block). For most applications, stay well under 100KB. If you need larger transactions, you'd need to work directly with miners. The 100KB limit exists to prevent mempool DoS attacks while still allowing substantial smart contract complexity."
+        },
+        {
+          "q": "How does BCH prevent DoS attacks from expensive opcodes in contracts?",
+          "a": "BCH uses a 'compute budget' system introduced with the VM limits upgrade. Each transaction gets a budget of 800 operation cost units per byte of transaction size. Different opcodes have different costs - simple operations cost 1, while expensive operations like signature checks cost more (26000 for CHECKSIG). If a transaction exceeds its budget, it's invalid. This allows complex contracts while preventing abuse, as attackers must pay proportionally more fees for compute-heavy transactions."
+        },
+        {
+          "q": "How do I convert CashAssembly (ASM) to bytecode using libauth?",
+          "a": "Use libauth's encoding functions to convert ASM tokens to bytecode. Parse the ASM string, map OP_* tokens to opcodes using OpcodesBch, and use encodeDataPush for data. Example: `const instructions = asm.split(' ').map(token => token.startsWith('OP_') ? { opcode: Op[token] } : decodeAuthenticationInstructions(encodeDataPush(hexToBin(token.replace(/[<>]/g, '').replace(/^0x/, ''))))[0]); return encodeAuthenticationInstructions(instructions);` The key functions are encodeDataPush, encodeAuthenticationInstructions, and OpcodesBch from @bitauth/libauth."
+        },
+        {
+          "q": "How is zero represented in BCH script arithmetic?",
+          "a": "In BCH script, zero is represented as an empty stack item, not 0x00. OP_0 pushes an empty stack item which equals arithmetic zero. The byte 0x00 is NOT a valid number for arithmetic operations - they will fail if you try to use it. When arithmetic operations (like OP_SUB) result in zero, they produce an empty stack item. The VM treats empty items as numeric zero for chaining operations. Script counts: 0x82 (-2), 0x81 (-1), \"\" (0), 0x01 (1), 0x02 (2). Use OP_NUM2BIN to convert an empty stack (zero) to 0x00 bytes if needed."
+        },
+        {
+          "q": "How do I create a Bitauth IDE scenario with an NFT token input?",
+          "a": "Define the token in the sourceOutputs section of your scenario. The sourceOutputs represent the UTXOs being spent (inputs). Example: `\"scenarios\": { \"my_scenario\": { \"transaction\": { \"inputs\": [{ \"unlockingBytecode\": [\"slot\"] }], \"outputs\": [] }, \"sourceOutputs\": [{ \"lockingBytecode\": [\"slot\"], \"token\": { \"nft\": { } } }] } }`. The sourceOutputs section 'passes in' the token, while outputs defines what tokens are sent out. The schema is auto-generated from TypeScript definitions in libauth - tracing back to those definitions makes it easier to work with."
+        },
+        {
+          "q": "How can scripts with variable compute needs share the same hash while minimizing fees?",
+          "a": "Use OP_DROP at the start of your locking script to accept a padding blob of variable size from the unlocking script. The spender provides just enough padding to fund the compute budget needed for their specific execution path. For security, enforce the padding is all zeros with `OP_BIN2NUM OP_NOT OP_VERIFY` at the start. This prevents third-party modification while letting different callers pay only for the compute they actually need, rather than worst-case fees for all possible execution paths."
+        },
+        {
+          "q": "Could BCH add an OP_SIGHASH opcode?",
+          "a": "An OP_SIGHASH opcode that takes a sighash flag and returns the transaction hash (like CHECKSIG computes internally but without verifying a signature) would be useful. This is similar to BTC's OP_CTV but more flexible since it works with all sighash types. CTV can already be emulated in BCH script using introspection opcodes and loops (about 153 bytes), but a native opcode would be more efficient. Combined with OP_CHECKDATASIG, this enables covenant patterns, CTV-style vaults, and other advanced constructions."
+        },
+        {
+          "q": "How can I implement append-only data storage on BCH?",
+          "a": "Create a UTXO that outputs back to itself, forming a chain you can follow to append entries. Each spend stores data in the unlocking bytecode while sending the UTXO back to the same address. This creates an append-only log tied to one address (easy lookup vs HD addresses). To protect against malleability attacks on the unsigned data portion, either: (1) use two signatures (SIGHASH_ALL + CHECKDATASIG), (2) store a hash of the data in an output (NFT commitment or OP_RETURN), or (3) use a proposed OP_SIGHASH to commit to custom data."
+        }
+      ]
+    },
+    {
+      "name": "CashTokens & NFTs",
+      "count": 30,
+      "faqs": [
+        {
+          "q": "Why does my mainnet-js TokenSendRequest show tokenData as undefined?",
+          "a": "This is likely a display issue, not a bug in your code. The transaction may have succeeded even if tokenData shows undefined in the decoded transaction object. Verify by checking a block explorer that supports CashTokens like explorer.electroncash.de. If you're sending tokens to the same wallet address, wallet history may show '0 tokens' because technically no balance change occurred - the tokens just moved between UTXOs in the same wallet."
+        },
+        {
+          "q": "What is the timeline for TXv5 (transaction version 5) on BCH?",
+          "a": "As of early 2025, there's no immediate push for TXv5. Jason Dreyzehner stated he won't push for it unless BCH becomes a Top 10 coin, as the integration effort for all ecosystem participants would need to be justified by sufficient adoption. Read-only inputs could alternatively be implemented without a new TX format by adding just 1 optional byte to input encoding, similar to how CashTokens was added to output encoding."
+        },
+        {
+          "q": "Can NFT commitments be used for social media or messaging on BCH?",
+          "a": "Yes. A user 'profile' could be a minting NFT, with messages issued as NFT outputs stored in the commitment field. The commitment can contain the message directly (up to 40 bytes) or an IPFS hash pointing to larger off-chain data. Messages can 'stay up' as long as a small per-block fee is paid. For dropping/deleting content, you simply spend and don't recreate the UTXO. This enables memo-style or chan-style dapps with blockchain-backed identity."
+        },
+        {
+          "q": "What is the current status of SLP (Simple Ledger Protocol) on BCH?",
+          "a": "SLP still receives occasional transactions but most of the ecosystem has moved on to CashTokens. The SLP Foundation still has funds and continues to fund infrastructure that depends on SLP. SLP was an important stepping stone for tokens on BCH, but CashTokens provides native, miner-validated token functionality that SLP couldn't achieve."
+        },
+        {
+          "q": "How does Paytaca's StableHedge stablecoin solution work?",
+          "a": "StableHedge (bitcoincashresearch.org/t/stablehedge/1504) has these properties: the peg mechanism is centralized (Paytaca maintains it), treasury/backing is fully transparent on-chain, and minting/redemption is permissionless. The treasury holds 50% in BCH (which anyone can 'pull' via redeem function) and 50% in 2x AnyHedge shorts. Users trust Paytaca to maintain correct backing, but all state is publicly verifiable - if they rug or lose backing, everyone sees it immediately."
+        },
+        {
+          "q": "What is the intended verification model for BCMR metadata?",
+          "a": "BCMR was designed for the receiver to provide metadata that the verifier validates - not for wallets to fetch from indexers. Example: scanning a merchant's payment terminal, they provide their BCMR JSON including auth-head and merkle proof. You verify the auth-chain back to auth-base (usually under 10KB total). DNS-based verification is also standard - the token issuer hosts BCMR JSON on their webserver. Trusted indexers that fetch metadata for you inverted this model, trading trustlessness for convenience. For NFT collections with thousands of images, the intended model breaks down (megabytes of BCMR data) so indexers became necessary."
+        },
+        {
+          "q": "What's the best design pattern for BCH paper wallets or cash stamps?",
+          "a": "For onboarding new users with physical paper wallets, the recommended flow requires 2 QR codes: 1) A URL QR that links to the CashStamps site and redirects to app store/play store for wallet download, 2) A BCH-WIF (Wallet Import Format) QR that any compatible wallet can sweep/claim. This makes the paper wallet interoperable - not locked to one specific wallet. For generating paper wallets, opensourcemetalwallet.com provides tools and wallet.fullstack.cash can sweep BCH and SLP tokens."
+        },
+        {
+          "q": "What is Bitcart and how does it compare to BTCPayServer for BCH?",
+          "a": "Bitcart (bitcart.ai) is an open-source, self-hostable crypto payment processor supporting BCH, BTC, LTC, XMR and more. It's Python-based with 6+ years of development and 4+ years of BCH support. Features include testnet4 support. The team is considering adding CashTokens support pending Electron Cash API availability. For merchants wanting to accept BCH without third parties, Bitcart is a viable alternative to BTCPayServer."
+        },
+        {
+          "q": "What dust amount should I use for CashToken UTXOs?",
+          "a": "Use 1000 sats as a safe default for CashToken UTXOs. This covers the worst-case dust calculation for token outputs which can have larger serialized sizes than regular P2PKH. While you could calculate the exact minimum using the formula (444 + output_size * 3), most developers find it simpler to use a fixed safe value. libauth provides functions for exact calculation if needed."
+        },
+        {
+          "q": "How can I measure BCH ecosystem growth beyond transaction count?",
+          "a": "Transaction counts on low-fee chains like BCH are susceptible to inflation (people wanting metrics to 'look better'). TVL (Total Value Locked) in DeFi protocols is a better metric since it's harder to artificially inflate. Track BCH TVL at tokenaut.cash/defi or defillama.com/chain/Bitcoincash - protocols like Cauldron, BCHBull/AnyHedge, Moria, and FutureBitcoin.cash (FBCH) show clear growth patterns. FBCH is currently the largest TVL CashToken project."
+        },
+        {
+          "q": "Where can I find BCMR (Bitcoin Cash Metadata Registry) implementations?",
+          "a": "Several BCMR implementations exist: (1) otr.cash - On-chain Token Registry, (2) github.com/zapit-io/ptr - Zapit's registry, (3) bcmr.flowee.cash - Flowee's BCMR server with HTML views for tokens and auth-chains, (4) bcmr.paytaca.com - Paytaca's metadata indexer (note: not technically a token registry per BCMR spec, more of a metadata aggregator). A comprehensive list of BCH ecosystem resources including BCMR registries is at minisatoshi.cash/ecosystem."
+        },
+        {
+          "q": "Does Blockbook support UTXO chain token balances like CashTokens?",
+          "a": "No, Blockbook only supports EVM token balances currently. Adding UTXO chain token support (like CashTokens) would essentially be a new project - there's no existing framework for it in Blockbook. The architecture assumes account-based token tracking, so supporting CashTokens would require significant changes to the database schema and API."
+        },
+        {
+          "q": "Can Tornado Cash be recreated on BCH?",
+          "a": "With loops, yes. Requirements: (1) ZKP verification to prove you own a deposit without revealing which one, (2) merkle trees to track deposits. When depositing, you get a receipt commitment. When withdrawing, you submit a ZK proof proving you know a secret corresponding to some commitment in the deposit tree - without revealing which commitment. This breaks the link between deposit and withdrawal."
+        },
+        {
+          "q": "How do ZK mixers like Tornado Cash provide privacy?",
+          "a": "You don't reveal which deposit you're withdrawing. Instead of submitting the specific commitment you're redeeming, you prove a secret with data + keys. The ZK proof shows: 'I know a secret that corresponds to one of the commitments in the deposit merkle tree' without revealing which one. This is fundamentally different from CashFusion which just mixes UTXOs - ZK mixers cryptographically break the deposit-withdrawal link."
+        },
+        {
+          "q": "What Rust library should I use for BCH development?",
+          "a": "rust-bitcoincash on GitLab (gitlab.com/rust-bitcoincash/rust-bitcoincash) supports CashTokens. For Electrum API access, use the electrum-client-netagnostic crate. Note: Rust libraries without recent commits aren't necessarily unmaintained - Rust forces explicit typing so libraries are often 'done' rather than abandoned. If you want to build a libauth-rs equivalent, that would be valuable for the ecosystem."
+        },
+        {
+          "q": "Where can I find BCHN's JSON-RPC API reference?",
+          "a": "docs.bitcoincashnode.org/doc/json-rpc/ has the full RPC reference for BCHN. This is equivalent to Bitcoin Core's RPC docs but includes BCH-specific additions like CashTokens support, patterns detection, and Double Spend Proof methods."
+        },
+        {
+          "q": "Do BCH wallets support WebP images for NFT art?",
+          "a": "Browser-based wallets are fine - WebP has been supported in browsers forever. Qt5-based wallets (like Electron Cash) may have issues - WebP requires a different image plugin. The plugin can significantly increase APK size for mobile apps. WebP offers ~96% size reduction over PNG (e.g., 934 MB → 37 MB). If using WebP, test in Electron Cash and other Qt-based wallets before deploying."
+        },
+        {
+          "q": "How do AMM DEXs on BCH determine token price?",
+          "a": "Two ways: (1) Price oracle - an external service provides price, adds some trust. (2) On-chain math - calculate price from BCH and token supplies in the AMM itself (constant product formula). The second method means each AMM pool has its own price based on its reserves. If two pools have the same tokens at different prices, arbitrage bots will trade to equalize them."
+        },
+        {
+          "q": "How can I derive a BCH address directly from a Nostr npub?",
+          "a": "Since BCH and Nostr both use the secp256k1 curve, you can derive a BCH address from a Nostr npub. The PSF Foundation wallet auto-generates a 12-word mnemonic, creates a private key at index 0 on the m/44'/245'/0'/0 derivation path (standard for SLP-token aware wallets), and from that private key generates both the BCH address and the nsec/npub for a Nostr account. You can also import an existing nsec and derive the corresponding BCH address. This enables trustless Nostr-BCH tipping."
+        },
+        {
+          "q": "What are the approaches for integrating Nostr and BCH wallets?",
+          "a": "Two approaches: (1) Build Nostr into BCH wallet - the PSF SLP DEX does this, with basic social media functions and Likes. You can 'Like' SLP tokens and post directly on tokens. (2) Build BCH wallet into Nostr client - would require Nostr client developers to integrate BCH libraries. Both approaches work because nsec keys are secp256k1 compatible. You can derive any secp256k1 pubkey from an nsec, making Nostr well-positioned to be a multi-coin wallet + decentralized social media platform."
+        },
+        {
+          "q": "Is there a C# .NET library for BCH development?",
+          "a": "Yes - BitcoinCashClient (github.com/david-shattuck/BitcoinCashClient) is a NuGet package that abstracts BCH complexity for C# .NET applications. It uses NBitcoin as the base layer for transaction construction. Used in production by AFoG (A Fistful of Gwei). The author is working on removing the NBitcoin dependency to enable full control over transaction construction for CashToken support. A getting-started video tutorial is available."
+        },
+        {
+          "q": "How can a BCH private key serve as identity across multiple dApps?",
+          "a": "Since BCH uses secp256k1, the same private key can be used for: (1) BCH transactions and CashTokens, (2) Nostr posting and messaging (npub/nsec), (3) DeFi like AnyHedge hedging, (4) DEX swaps on Cauldron/TapSwap, (5) Wallet connection to dApps. The key is having standard protocols that each dApp uses - the blockchain and Electrum provide the common connection layer. This enables a unified identity across the entire BCH dApp ecosystem."
+        },
+        {
+          "q": "How do time-locked vaults protect users from their own mistakes?",
+          "a": "Smart well-educated users sometimes make mistakes - when drunk, high, stressed, or FOMO-driven during NFT mints. A time-locked vault set up during a good state of mind protects you in future impaired states. If it's impossible to sign anything other than the previously verified intended use, users don't need to understand the signing process at all. The vault with timelock gives a cooling-off period, and multisig adds additional verification layers."
+        },
+        {
+          "q": "How should exchanges handle CashToken UTXOs sent to deposit addresses?",
+          "a": "Quarantine (ignore) CashToken UTXOs to retain an option to recover them manually if the user covers recovery fees. Implementation: override the block parser to construct a pruned block containing only BCH transactions, process those normally with parent class logic, then create token vouts in DB with FAILED status. FAILED status incomings are excluded from UTXO selection queries, effectively quarantining them while preserving the data for potential recovery."
+        },
+        {
+          "q": "Can Nostr be used as a coordination layer for BCH wallets?",
+          "a": "Yes, and several developers are interested in exploring this. Nostr could enable decentralized communication between wallets without centralized services. For example, Alice could tell Bob how many tokens to transfer without using email or Telegram. The protocol uses the same secp256k1 curve as BCH, so the same private key can be used for both Nostr identity and BCH transactions."
+        },
+        {
+          "q": "How could x402 protocol be adapted to BCH efficiently?",
+          "a": "The challenge is that x402 settles every API call on-chain, which isn't cost-effective even with BCH's low fees. Adaptation ideas: (1) The 'Facilitator' middleware has an HD wallet, assigns addresses to users, accepts batch payments and debits against them, (2) JWT tokens that are self-verifying (no Facilitator needed), (3) Payment channels for 1:1 service provider relationships. The whitepaper mentions 'batched settlements' but it's not specified yet. A semi-centralized first iteration is acceptable - don't let perfect be the enemy of good enough."
+        },
+        {
+          "q": "What tools can decode a raw hex BCH transaction?",
+          "a": "Several options: (1) explorer.bch.ninja/decoder - online decoder by sickpig, (2) tx-debugger-4e98d2.gitlab.io - transaction debugger, (3) Electron Cash GUI - Ctrl+T to load and view transactions, (4) Electron Cash CLI: `electron-cash deserialize <txhex>` for JSON output (note: CashTokens support is incomplete pending PR review). For offline use, Tom's flowee transaction parser is also available."
+        },
+        {
+          "q": "Does BCH have a PSBT (Partially Signed Bitcoin Transactions) standard like BIP-174?",
+          "a": "Currently there's no standardized PSBT for BCH. Electron Cash can export .txn files with raw tx + metadata for offline signing, but it's wallet-specific and CashTokens support is incomplete. A CHIP wouldn't be appropriate since PSBT isn't consensus-related. The XO project (stack.xo.cash) is developing a more robust alternative that aims to be better than traditional PSBT for BCH, including proper offline signing support. Check stack.xo.cash/blog for updates."
+        },
+        {
+          "q": "How do I derive a token-aware address from a public key hash in libauth?",
+          "a": "Use `addressContentsToLockingBytecode` with the type set to 'p2pkhWithTokens' (note the plural 'tokens'). This is the token-aware variant of p2pkh that allows the address to receive CashTokens. The common mistake is using 'p2pkhWithToken' (singular) which doesn't exist. For example: `addressContentsToLockingBytecode({ payload: pkh, type: 'p2pkhWithTokens' })`."
+        },
+        {
+          "q": "What is the byte size of a token category in CashTokens?",
+          "a": "A token category ID is always 32 bytes (the transaction hash of the genesis transaction). However, in transaction serialization, the commitment field size depends on capability: 'none' capability tokens use 32 bytes for the category, while 'mutable' or 'minting' capability tokens need 33 bytes (32 for category + 1 for capability byte). When calculating transaction sizes for fee estimation, account for this difference."
+        }
+      ]
+    },
+    {
+      "name": "Libraries & SDKs",
+      "count": 14,
+      "faqs": [
+        {
+          "q": "How can BCH be integrated with Nostr for tipping?",
+          "a": "There are two main approaches: 1) Non-custodial: Integrate BCH library features directly into Nostr clients - not a full wallet, just basic send/receive functionality. This is technically simpler but requires client developers to do the work. 2) Custodial: Use a third-party service that generates BCH addresses server-side by combining Nostr pubkeys with a secret. This works immediately with all Nostr clients via a simple URL scheme. The custodial approach mimics how Lightning zaps work in Nostr today and requires minimal integration effort from client developers."
+        },
+        {
+          "q": "Should I use mainnet-js or libauth for building a BCH dApp with React/Next.js?",
+          "a": "Libauth is a low-level library while mainnet-js is high-level (and internally powered by libauth). If mainnet-js has the functionality you need, it's the easiest starting point. For advanced control, use libauth directly. You can also extend the base wallet class in mainnet-js with custom functionality for your application. For React/Next.js specifically, there's an official demo at github.com/mainnet-cash/mainnet-js/demo/react-next that shows proper configuration."
+        },
+        {
+          "q": "Why do I get 'topLevelAwait' warnings when using mainnet-js with Next.js?",
+          "a": "The warning 'The generated code contains async/await because this module is using topLevelAwait' can often be safely ignored if your Next.js configuration is correct. This is webpack being overly cautious about the next.config.mjs settings. Check if there are actual runtime errors in the browser console - if the wallet generates a BCH address successfully, mainnet-js is working correctly. Use yarn as the package manager (there's a yarn.lock file in the repo) and ensure you're following the demo example configuration."
+        },
+        {
+          "q": "What options exist for building BCH applications in Go?",
+          "a": "For Go developers, BCHD is the easiest option since it's written in Go and provides GRPC for easy integration. The Neutrino wallet project has working Go code for wallet functionality you could reuse. Other backend options include ChainGraph and the BCHC indexer. For Electrum/Fulcrum communication, you'd need to create a Go library since none currently exists - or use BCHD's GRPC interface instead."
+        },
+        {
+          "q": "What's the recommended way to implement BCMR on-chain authchain resolution?",
+          "a": "Using Fulcrum directly for BCMR authchain lookups is slow and creates excessive server load. Better options: 1) Paytaca's BCMR indexer (github.com/paytaca/bcmr-indexer) - dedicated Python indexer with REST API, 2) Cauldron's Rust indexer (indexer.cauldron.quest), 3) Rostrum's blockchain.utxo.get if using Rostrum servers (nexa.gitlab.io/rostrum/), 4) mainnet-js has built-in BCMR support. For light verification, DNS-based BCMR resolution works too (explorer.salemkode.com/registers shows examples)."
+        },
+        {
+          "q": "What Rust libraries exist for BCH development?",
+          "a": "Several Rust options for BCH: 1) rust-bitcoincash (gitlab.com/rust-bitcoincash/rust-bitcoincash/) - main Rust library, 2) Riften Labs tooling (gitlab.com/riftenlabs) including a Rust indexer, 3) Cauldron's Rust-based BCMR indexer. libauth also uses Rust for WebAssembly hash functions (github.com/bitauth/libauth/tree/master/wasm/hashes). Note that Java and C++ have more mature compiled-language BCH tooling overall."
+        },
+        {
+          "q": "What is a Rust light P2P client for BCH?",
+          "a": "There's a light P2P client example at github.com/samrock5000/p2p-client using the Rust nakamoto package. It lets you update a bloom filter from an input form and send 'loadfilter' messages to peers. It detects BCH addresses and hex-encoded data, and is intended for demonstration/learning. Future plans include merkleblock fetching and inclusion proof validation. It builds on Linux and macOS."
+        },
+        {
+          "q": "How do I fix ESM errors when using Libauth with ts-node?",
+          "a": "Use `tsx` instead of `ts-node` - it handles ESM modules much better and 'just works' in most cases. Libauth v3 requires Node v22+ LTS. Common issues: (1) Check your tsconfig.json module settings, (2) Libauth uses top-level await for WASM initialization which can cause issues with some setups, (3) If mixing ESM with CommonJS, Node v23 has experimental support but may conflict with top-level await. The tsx package (npm install tsx) is the recommended solution."
+        },
+        {
+          "q": "How do I get UTXO breakdown for fee calculation in mainnet-js?",
+          "a": "Use `await wallet.getAddressUtxos()` to get individual UTXOs with their values. This tells you if your balance is '5 $100 bills' or '100 $5 bills' - which affects transaction fees. Fee handling is abstracted by default in mainnet-js (a feature), but you can access raw UTXO data when needed. The JS library and REST API have identical APIs."
+        },
+        {
+          "q": "Does BTCPayServer have BCH support?",
+          "a": "The underlying NBitcoin/.NET library has BCH support (albeit with unflattering class names like 'BTrashPubKeyAddress'), added by Nicolas Dorier himself back in April 2018. NBXplorer (BTCPayServer's indexer) also lists BCash support. However, actually getting BCH into BTCPayServer proper would require someone to build a BCH plugin and likely face social/political resistance. BTCPayServer recently showed openness by merging Nano support, so if someone wanted to make a project of it, worst case is forking to 'BCHPay'."
+        },
+        {
+          "q": "Is there a Swift/iOS library for BCH development?",
+          "a": "Yes - SwiftFulcrum lets you connect to the BCH network via Fulcrum from iOS/iPad. You can get connected to the BCH network in under 5 minutes. The library is designed for native iOS development and provides access to BCH blockchain data through Fulcrum's Electrum-compatible protocol."
+        },
+        {
+          "q": "Does libauth support partially signed transactions?",
+          "a": "Yes. While not interfacing directly with libauth for this, bitauth IDE (ide.bitauth.com) uses libauth under the hood and there you can define any signing scenario you want. Libauth's templating system supports complex multi-party signing scenarios."
+        },
+        {
+          "q": "How do you create a chipnet wallet using mainnet-js?",
+          "a": "Use the TestnetWallet class - mainnet-js uses chipnet as its testnet by default. When you instantiate a TestnetWallet, it automatically connects to chipnet infrastructure. No additional configuration is needed for chipnet development."
+        },
+        {
+          "q": "What port should I use for chipnet WebSocket Electrum connections?",
+          "a": "For WebSocket connections to chipnet, use port 50004 with wss:// protocol. Example: `wss://chipnet.imaginary.cash:50004`. The standard non-WebSocket Electrum port is 50002. When using mainnet-js with testnet, you can just specify 'testnet' and the library will find the best node automatically using its built-in server list."
+        }
+      ]
+    },
+    {
+      "name": "Protocol & CHIPs",
+      "count": 13,
+      "faqs": [
+        {
+          "q": "What is RPA (Reusable Payment Addresses) in BCH?",
+          "a": "RPA is a privacy feature similar to stealth addresses that allows users to share a single reusable address that generates unique receive addresses for each payment. It's currently supported in Electron Cash wallet and is still in alpha stage. With wallet native support, RPA can provide convenient privacy. The specification can be found at github.com/imaginaryusername/Reusable_specs/blob/master/reusable_addresses.md"
+        },
+        {
+          "q": "Can I use the same keypair for both a BCH wallet and a Nostr account?",
+          "a": "While BCH and Nostr both use the secp256k1 curve, the keypair schemes are different. The same private key will give you different public keys because Nostr uses BIP340 (BTC-style Schnorr). So if you send BCH to an address derived from someone's Nostr pubkey (npub), they can't spend it using their Nostr private key directly. The signing algorithms are compatible (you can use npriv for signing a BCH transaction), but the public key derivation differs."
+        },
+        {
+          "q": "What is the millisatoshi (mSAT) CHIP proposal for BCH?",
+          "a": "The mSAT CHIP proposes increasing BCH transaction precision by allowing sub-satoshi amounts. The main motivation is fee sustainability: if BCH reaches $100M/coin, the current 1 sat/byte minimum would make the smallest transaction cost ~$219. With millisats (1 mSAT/byte = 1 sat/kB), minimum fees drop to $0.22. Note that the minrelayfee exists for network health (preventing UTXO bloat), not to ensure miner income - miners can already choose what fees to accept via direct transaction submission or by mining empty blocks."
+        },
+        {
+          "q": "What are read-only inputs in TXv5 and why are they useful?",
+          "a": "Read-only inputs allow a transaction to reference a UTXO without spending it. This is valuable for oracle protocols like d3lphi where users can read oracle data without 'fighting' over the UTXO. Without read-only inputs, high-volume oracle usage would cause transaction chain conflicts. The trade-off is more complex mempool management: nodes must track transactions that reference the same UTXO read-only until they're mined."
+        },
+        {
+          "q": "Why does BCH prefer hard forks over soft forks for upgrades?",
+          "a": "BCH developers have found that in many situations, hard forks are better: less headache, cleaner code, and less complicated than soft forks. The key is having everyone aboard through a reasonable process like the CHIP (Cash Improvement Proposal) system. With clear coordination and community agreement, hard forks enable cleaner protocol improvements without the technical debt that soft forks can accumulate."
+        },
+        {
+          "q": "Can BCHN be configured for fees lower than 1 sat/byte?",
+          "a": "Yes, the mintxfee setting allows configuring fees in BCH/kB. The default is 0.00001 BCH/kB (1 sat/byte), but it can be set lower. However, mintxfee controls transaction creation while minrelayfee controls propagation - both need to match network-wide for consistent behavior. Lower fees require network-wide agreement since inconsistent settings break 0-conf reliability. Currently, going below 1 sat/byte would need ecosystem coordination, similar to how consensus changes work."
+        },
+        {
+          "q": "What's the relationship between relay rules and consensus on BCH?",
+          "a": "Relay rules and standardness rules are not technically consensus, but they're 'pseudo-consensus' - consequential changes that deserve as much thought and consideration as a consensus CHIP. Nobody can just assert what the network will do since changes to relay rules have real network-wide impact. For example, changing the minimum relay fee affects transaction propagation behavior across the network, even though it's not enforced by consensus."
+        },
+        {
+          "q": "Are DeFi price oracles inherently centralized?",
+          "a": "Most are, yes. Getting USD/EUR prices requires a centralized source since those currencies are controlled by governments. Even for on-chain assets, someone typically signs the price data and extracts trade fees, introducing centralization. A hashrate-based oracle (GigaHashCoin concept) could be truly decentralized since mining difficulty is consensus-determined. For asset prices, having multiple independent sources helps but doesn't eliminate trust - you still need conversion between currencies which requires trusted rate providers."
+        },
+        {
+          "q": "What are the actively maintained BCH specification documentation sources?",
+          "a": "Several forks exist with varying maintenance levels: (1) reference.cash - Bitcoin Unlimited's copy, accepts PRs, (2) flowee.org/docs/spec - Flowee's copy, pulls updates from other forks, (3) codeberg.org/bitcoincash/specification - Tom/Flowee's copy, considered most consistently maintained. documentation.cash (Verde) has stale issues and slower PR acceptance. The challenge with community-owned docs is no personal benefit for maintainers. For recent upgrade info, consider pasting CHIP specs directly when working with LLMs."
+        },
+        {
+          "q": "What is tempnet and how does it relate to chipnet?",
+          "a": "Tempnet is a fork of chipnet. Since it's a fork, people who have chipnet coins can help test on tempnet as well. Chipnet is the test network with 2025 upgrade features activated, used for development testing before mainnet activation. Tempnet provides an additional testing environment for specific scenarios."
+        },
+        {
+          "q": "What is the difference between BCH reference specification and software howtos?",
+          "a": "Reference specification tells you data formats (transactions, blocks, network messages) and consensus/network rules. It's meant to be read by implementers of software, not end users. Using or configuring specific software that satisfies the spec is not part of the spec itself. For example, header spec and stratum protocol spec belong in the specification, but guides for particular pool software do not. BCH could use more end-user howtos, but those are a different type of documentation."
+        },
+        {
+          "q": "Where can I test JSON Payment Protocol (JPP) wallet implementation?",
+          "a": "Test with real BitPay merchants like Ampex or Namecheap. BitPay supports both JSON Payment Protocol (JPPv2) and BIP70 protocol buffers - what your wallet handles depends on what Accept header it sends. For implementation reference, see Selene wallet's payment_protocol.ts. Note: Don't implement the 'Trusted Keys' functionality - BitPay's keys are expired and it's just a secondary measure on top of HTTPS. Example JPP implementations are at stamps.cash, tags.infra.cash, and scantopay.cash."
+        },
+        {
+          "q": "When did chipnet activate the 2026 VM upgrades?",
+          "a": "Chipnet activated the 2026 BCH network upgrades on November 15th, 2025 (the standard BCH upgrade lock-in date). Developers should switch from tempnet to chipnet for testing 2026 features like loops, bounded loops, P2S, and other new VM capabilities. Mainnet activation follows on May 15th, 2026."
+        }
+      ]
+    },
+    {
+      "name": "Wallet Development",
+      "count": 28,
+      "faqs": [
+        {
+          "q": "How do I fix WalletConnect session issues on TapSwap?",
+          "a": "If TapSwap shows connection info instead of asking you to select a wallet, it may still be connected to a previous session. Go to Settings > End all sessions to force disconnect. If the button doesn't work, open your browser's developer tools and remove all localStorage items that mention 'wc2'. Consider using Safari or Chrome rather than Edge for better WalletConnect compatibility. Note that Brave browser also has known issues with WalletConnect."
+        },
+        {
+          "q": "Where is the Electrum Cash Protocol documentation for communicating with Fulcrum?",
+          "a": "The raw JSON-RPC protocol documentation for communicating with Fulcrum directly is available at electrum-cash-protocol.readthedocs.io. This covers all the API methods for querying addresses, UTXOs, transaction history, and subscribing to address changes. For Go development, consider using BCHD's GRPC interface instead, or bchwallet at github.com/gcash/bchwallet."
+        },
+        {
+          "q": "Is WalletConnect decentralized, and what happens if it goes down?",
+          "a": "WalletConnect is NOT decentralized - it's just a transport layer for the wallet API. It's widely used across cryptocurrency but represents a single point of failure. The long-term proposal is to move this transport layer to libp2p. However, using WalletConnect with a standardized API (like Pat's BCH wallet API spec) is still better than every dapp needing to create its own built-in web wallet with questionable security."
+        },
+        {
+          "q": "Do BCH wallets implement SPV as described in the Bitcoin whitepaper?",
+          "a": "Yes, some BCH wallets implement true SPV (Simplified Payment Verification) as specified in section 8 of the Bitcoin whitepaper. Electron Cash and Flowee Pay both verify merkle proofs against block headers to confirm transactions are included in mined blocks. This is proper SPV - not just 'trust the server' but actual cryptographic verification that a transaction is buried under proof-of-work."
+        },
+        {
+          "q": "What are Double Spend Proofs (DSP) in BCH?",
+          "a": "Double Spend Proofs (DSP) are a BCH feature that alerts the network when someone attempts to double-spend unconfirmed coins. When nodes detect conflicting transactions spending the same inputs, they generate a cryptographic proof and broadcast it. Wallets like Electron Cash can display DSP alerts to merchants. Testing on testnet is easier than mainnet due to fewer nodes. See flowee.org/posts/dsproof/ for details."
+        },
+        {
+          "q": "What are the correct WalletConnect chain IDs for BCH?",
+          "a": "BCH uses CAIP-2 format chain IDs that differ from BTC's bip122:genesisHash format. The correct chain IDs are: 'bch:bitcoincash' for BCH mainnet, 'bch:bchtest' for BCH testnet, 'bch:bchreg' for BCH regtest. This is defined in Pat's WalletConnect spec for BCH. Note: BTC uses bip122:000000000019d6689c085ae165831e93 (genesis hash) which is a different convention."
+        },
+        {
+          "q": "What's the status of BCH integration with WalletConnect?",
+          "a": "There's an open GitHub issue (#5672 in walletconnect-monorepo) for BCH chain registration. However, registering a chain with WalletConnect's Explorer doesn't impact or improve the ability for wallets and dApps to support your chain - it's simply a discovery mechanism. The actual integration requires individual wallets and dApps to implement BCH support independently. The chain registration just helps users discover which wallets/dApps already support BCH."
+        },
+        {
+          "q": "How can BCH work during power outages or without internet?",
+          "a": "Several approaches exist: (1) Wallets can pass around merkle proofs to verify input validity without internet - you can't detect double spends offline, but for small payments the risk is acceptable. (2) Mesh networks (like Hong Kong protesters used) provide low-bandwidth backup connectivity - BCH transactions are tiny so even intermittent mesh access suffices. (3) RFID cards loaded with pre-confirmed UTXOs (developed by Tobias Ruck at be.cash) where the card holds $1/$5/$10 UTXOs - merchant needs internet but payer doesn't. (4) CoinText-style SMS services (now defunct) that tied wallet custody to phone numbers. With battery/solar power and a 4G hotspot, most realistic scenarios are covered - an 80W panel can run a 4G hotspot off-grid."
+        },
+        {
+          "q": "What's the best way for wallets to sync with the blockchain?",
+          "a": "Full nodes with merkle blocks solve this in an extremely cheap, scalable, and private way - much faster and more consistent than Electrum servers. The problem is many wallets don't use merkle blocks and instead use Electrum or other indexing layers which create new problems. Merkle block sync provides the best user experience with consistently fast wallet opening."
+        },
+        {
+          "q": "Does Blockbook support merkle proofs for SPV wallets?",
+          "a": "No, Blockbook doesn't have APIs for merkle proofs which makes it unsuitable for SPV wallets. It's a different kind of audience than Electrum - Blockbook is designed for trusted setups like hardware wallets (Trezor) where the indexer is trusted. It uses REST and WebSocket APIs primarily for address balance lookups and transaction history, not for light client verification."
+        },
+        {
+          "q": "How can mobile wallets run background tasks like auto-fusion?",
+          "a": "Mobile platforms restrict battery usage heavily. Options: (1) Background Runner - scheduled jobs every ~15 mins, acceptable for delayed notifications, (2) Push Notifications - instant but requires backend server knowing your addresses (privacy tradeoff). Push requires Firebase (Google) or ANS (Apple). A central server for address monitoring goes against decentralization. Alternative: run background sync when phone is charging overnight."
+        },
+        {
+          "q": "How do I use Electron Cash on a testnet?",
+          "a": "Start Electron Cash from the command line with the `--chipnet` flag. This connects to the chipnet testnet. Other flags like `--testnet4` may work depending on version. This isn't prominently documented but is the standard way to access testnets with the desktop wallet."
+        },
+        {
+          "q": "How does ElectrumX address status hash work for wallet caching?",
+          "a": "When you call `blockchain.address.subscribe`, you get a status hash and receive new ones on each update. Cache the hash along with history + unspents - only refresh when hash changes. The hash is computed from transaction history in order: confirmed txs use CTOR, unconfirmed sorted by height then hash. Computing this client-side is expensive and the docs have grey areas about mempool ordering."
+        },
+        {
+          "q": "Can Nostr npubs be converted to BCH addresses for tipping?",
+          "a": "Yes! Nostr nsec keys are secp256k1 compatible with BCH. A draft NIP enables converting npub to BCH address, allowing direct payments/tipping between Nostr users with BCH. The code derives the BCH address from the npub's public key. Long-term vision: wallets like Cashonize adding Nostr features to social media directly and receiving value on-chain. See github.com/bastiancarmy/nostr-multi-chain-tipping-nip for the implementation."
+        },
+        {
+          "q": "What is Nostr and how does it relate to BCH?",
+          "a": "Nostr is like Twitter but decentralized - it uses relays (similar to Bitcoin nodes) to send signed messages rather than routing through a central server. Since Nostr nsec keys use the same secp256k1 curve as BCH/BTC/ETH, you can derive BCH addresses from Nostr keys. This means Nostr is well-positioned to be a multi-coin wallet + decentralized social media platform. BCH solves the tipping problem natively (current Nostr direction favors Lightning). E2EE messaging is also supported."
+        },
+        {
+          "q": "What free public REST APIs exist for BCH data?",
+          "a": "Several options: (1) Fulcrum (github.com/cculianu/Fulcrum) - ElectrumX protocol server with public instances, (2) ChainGraph (github.com/bitauth/chaingraph) - GraphQL API with public instances, (3) mainnet.cash - REST API similar to old bitcoin.com API, (4) Cash Stack at free-bch.fullstack.cash - evolved from the original bitcoin.com API/BITBOX. Choose based on your data needs - Fulcrum for wallet operations, ChainGraph for complex queries, mainnet/Cash Stack for general REST access."
+        },
+        {
+          "q": "What is CashConnect and how does it differ from WalletConnect?",
+          "a": "CashConnect (also called CashRPC) is a BCH-specific protocol for wallet-to-dApp communication, used by BCH Guru. It's designed to solve HD wallet integration challenges. While CashConnect currently uses WalletConnect as its transport layer, it's a separate protocol. WalletConnect 2.0 is complex with 5 types of servers (relay, push, history, verify, echo) - replacing it with something like libp2p is under consideration but would require significant work."
+        },
+        {
+          "q": "How complex is WalletConnect 2.0 infrastructure?",
+          "a": "Very complex. WalletConnect 2.0 requires 5 types of servers: relay servers, push servers, history servers, verify servers, and echo servers. This makes it difficult to replicate with generic open source alternatives. The protocol is opinionated and the network is currently permissioned (controlled by Reown company). For BCH, alternatives using libp2p are being explored for running web-accessible Fulcrum, Chaingraph, and BCH-P2P infrastructure from home."
+        },
+        {
+          "q": "Would browser-native crypto payments be better than wallet connect?",
+          "a": "Yes - for HTTP-based micropayments like x402, wallet connect is overkill. The ideal is a wallet in a browser plugin or a browser that ships with a wallet natively. Using web protocols to make a browser talk to a wallet app on the same device adds unnecessary complexity. For mobile, deep linking or app-specific protocols would be more appropriate than routing through external relay servers. Browser support for HTTP 402 status code is what's needed to make web payments mainstream."
+        },
+        {
+          "q": "Can EVM wallet designs like MetaMask/MEW be adapted for BCH?",
+          "a": "It's challenging. Both BCH and Ethereum use secp256k1 curve, so key derivation works. However, EVM wallets are deeply steeped in the account model - adapting UX from account to UTXO model is 'completely non-trivial'. Previous attempts like Badger Wallet (badger.cash) failed to adapt well. The UI might be reusable but the UX requires rethinking from scratch. XO.cash is a native BCH approach to the 'DeFi hub wallet' concept."
+        },
+        {
+          "q": "Why do wallet developers build new wallets instead of contributing to existing ones?",
+          "a": "Often it comes down to wanting control and sometimes inability to work together with others. Building on existing wallets would let developers instantly gain users - for example, a DeFi plugin for established wallets would give access to that user base. Existing wallets like Flowee Pay have plugin/module architectures specifically designed for this integration. The open source mantra is that adding to existing projects is more effective than starting your own, but BCH sees many parallel wallet development efforts."
+        },
+        {
+          "q": "How can a templating system improve dApp security over wallet connect?",
+          "a": "A generalized templating system moves complexity from dApps into the wallet. Instead of apps asking for signatures (which can be exploited), apps ask users to perform specific actions. The wallet understands the template, lets users verify locally that what the app requested matches what they're about to do, then executes it. This moves trust from 'apps that can update at operator whim' to 'templates that are pre-verified and static.' Wallets can learn new features by adding template support rather than implementing each dApp."
+        },
+        {
+          "q": "Why are templates more trustworthy than dApps?",
+          "a": "Templates push trust to template makers rather than dApp operators. A dApp can change from day to day, so you have to renew your trust every time you use it. A template should only need updating very rarely, so you don't need to renew trust frequently. High-security wallets will refuse templates they haven't audited and signed for. High-versatility wallets will let you add any template with just a warning. Most wallets will fall somewhere between these extremes."
+        },
+        {
+          "q": "What's a dangerous NPM security vulnerability related to email domains?",
+          "a": "For many NPM packages, the domains used for maintainer email addresses have expired. An attacker can register the expired domain, launch a mail server, then use the password reset mechanism to gain control of the package. This enables publishing malicious versions. Mitigations: NPM should require 2FA for package publishing, wallets should pin exact dependency versions, and sites should monitor domain expiration for BCH-related projects. The distrust.co project was created specifically to defend against such supply chain attacks."
+        },
+        {
+          "q": "Can BCH wallets use Nostr relays for messaging without implementing all NIPs?",
+          "a": "Yes - NIP01 (basic protocol) is enough. You don't need to implement all Nostr proposals. Since both BCH and Nostr use secp256k1, you can use the same private key for both BCH address and Nostr npub. For E2EE messaging, use the appropriate NIP. Running your own relay on Start9 tied to your Nostr key and syncing across multiple relays gives decentralization. BCH clients can implement their own tipping without needing new NIPs accepted."
+        },
+        {
+          "q": "What is Yggdrasil and could it help BCH infrastructure?",
+          "a": "Yggdrasil is a mesh networking technology that replaces the TCP/IP layer. It's an excellent concept that addresses issues like NAT traversal and enables direct connections. An interesting idea is deriving Yggdrasil addresses from wallet keys. For now, the combination of Fulcrum + BCH node + Nostr relays for comms works well. If oppression intensifies, having wallets operate as nodes could become important."
+        },
+        {
+          "q": "What is CashFusion and how does it provide privacy?",
+          "a": "CashFusion is an opt-in mixing protocol for Bitcoin Cash privacy. It's an automated, continuous version of CoinJoin that runs in the background of compatible wallets. Unlike older mixers that require same amounts, CashFusion uses combinatorial mathematics to create hundreds of possibilities for who paid whom. Multiple users contribute coins to a shared transaction pool, all inputs/outputs get shuffled together, and coins return as 'mixed' coins. The fees are split between all participants, so per-user cost is typically 2-4x a normal transaction (due to more inputs/outputs), not the full transaction fee shown in wallet UIs."
+        },
+        {
+          "q": "How can I visualize BCH transaction privacy and CashFusion effects?",
+          "a": "The cashflow.dev tool can visualize transaction privacy patterns. It can show standard HD wallet privacy (address non-reuse patterns) vs CashFusion privacy by comparing fund flows with and without fusion transactions. You can run experiments like sending funds between two HD wallets with no address reuse, then compare to the same experiment interspersed with fusion transactions."
+        }
+      ]
+    },
+    {
+      "name": "Privacy & Security",
+      "count": 5,
+      "faqs": [
+        {
+          "q": "What is 'software rot' and why does it matter for BCH development?",
+          "a": "Software rot (or bit rot) refers to the gradual degradation of software quality over time, even without code changes. External dependencies update, operating systems change, APIs deprecate, and security vulnerabilities are discovered. This means software requires ongoing maintenance just to keep running. The 80/20 rule often applies: 80% of software can be written in 20% of the time, but the remaining edge cases and bugs take much longer. Simple, focused tools with minimal dependencies tend to age better - some well-designed utilities can run unchanged for years."
+        },
+        {
+          "q": "What's the difference between ZK-SNARKs and ZK-STARKs for BCH?",
+          "a": "ZK-SNARKs require a 'trusted setup' ceremony which is considered a potential vulnerability - if the setup is compromised, fake proofs could be created. ZK-STARKs are transparent (no trusted setup) and potentially quantum resistant, but have larger proof sizes. For BCH, implementing any ZK system would require understanding the tradeoffs and potentially developing a custom implementation that fits the UTXO model."
+        },
+        {
+          "q": "Are sidechains/drivechains possible on BCH?",
+          "a": "Technically yes, but nobody's building them. The industry moved to ZKPs for sidechains - SPV 2-way peg proofs never took off. Perspective: sidechains on BTC were proposed to deflect on-chain innovation; ETH uses L2s because account-based architecture can't scale; BCH's UTXO architecture CAN scale on L1. The power of the base chain hasn't been fully utilized yet. Sidechains are for specialized use cases that aren't feasible on-chain."
+        },
+        {
+          "q": "How can ZKP2P hooks enable trustless fiat on-ramps to BCH?",
+          "a": "ZKP2P hooks can act as automation robots for cross-chain settlement. The flow: (1) User buys USDC on Base via ZKP2P P2P trade wanting BCH, (2) The successful ZKP2P intent fulfillment triggers the hook, (3) The hook takes USDC from ZKP2P escrow and sends it to THORChain with a memo specifying 'swap for native BCH and send to this BCH address', (4) THORChain's decentralized nodes handle the cross-chain swap and final delivery. This enables trustless fiat-to-BCH on-ramping using existing infrastructure."
+        },
+        {
+          "q": "How does ZKP2P verify fiat payments for trustless on-ramping?",
+          "a": "ZKP2P verifies browser TLS data and email data to confirm fiat payments have been made. An alternative approach would use a custom Firefox or Chromium build instead of browser extensions - the browser can watch for certain variables in the document (sent form fields, AJAX/JSON data) and filter that data. This approach requires no proxy and no TLS manipulation, potentially being simpler and working with any bank rather than requiring specific integrations."
+        }
+      ]
+    },
+    {
+      "name": "Infrastructure & Nodes",
+      "count": 14,
+      "faqs": [
+        {
+          "q": "How can I speed up BCH full node initial sync?",
+          "a": "Several approaches: 1) Use Bitcoin Verde with its fast sync mode for the quickest option. 2) For BCHN, ensure you have an SSD (preferably NVMe), a moderately fast CPU, and a fiber connection. With good hardware, BCHN can sync from 0-100% in 2-4 hours. If your sync is taking 24+ hours even with decent hardware (1Gbit, Xeon, NVMe), consider switching to Verde for faster initial sync, then you can switch back to BCHN if needed."
+        },
+        {
+          "q": "What chipnet block explorers are available for BCH testing?",
+          "a": "Several chipnet explorers exist: cbch.loping.net, chipnet.chaingraph.cash, and chipnet.bch.ninja. Note that some explorers may depend on shared Fulcrum servers - if one goes down due to bandwidth abuse, multiple explorers may be affected. Having a local node or using an explorer that runs its own server provides more reliability for development."
+        },
+        {
+          "q": "What is whitepaper pruning and do any Bitcoin nodes implement it?",
+          "a": "Whitepaper pruning (from section 7 of the Bitcoin whitepaper) describes discarding spent transactions while keeping block headers. Importantly, NO Bitcoin node (BTC or BCH) implements this. Current 'pruned nodes' just delete old block data but still require downloading the full blockchain initially. True whitepaper pruning would allow nodes to start with only headers and UTXO set, but this isn't implemented anywhere."
+        },
+        {
+          "q": "How does SPV merkle proof verification work?",
+          "a": "SPV clients download only block headers (80 bytes each). When they need to verify a transaction, they request a merkle proof from a full node - this is the set of hashes needed to compute from the transaction up to the merkle root in the header. The client independently computes the merkle root and checks it matches the header. Since headers are chained with proof-of-work, this proves the transaction is buried under that work without needing the full blockchain."
+        },
+        {
+          "q": "Are bloom filters in BCHN a fixed size?",
+          "a": "Yes. At construction, a fixed-length byte array is created. Inserting items into a bloom filter only toggles individual bits but does not change the size in any way. This is a fundamental property of bloom filters - they use a fixed memory footprint regardless of how many items are inserted."
+        },
+        {
+          "q": "How do I manually connect to a BCH node using the P2P protocol?",
+          "a": "The P2P handshake sequence is: A sends `version`, B responds with `verack` then `version`, A responds with `verack`. You can use netcat (nc) with xxd to send binary messages. Example using a version message hex: `echo 'e3e1f3e876657273696f6e...' | xxd -r -p | nc node_ip 8333`. The version message needs correct magic bytes (e3e1f3e8 for mainnet), command name, payload length, and checksum. If you get no response, your message format may be wrong - nodes silently ignore invalid messages."
+        },
+        {
+          "q": "How do nodes choose between two competing blocks at the same height?",
+          "a": "When the network has N+A and N+B (two blocks at equal height with equal chainwork), there's no objective tie-breaker. Nodes pick subjectively using this policy: 1) Favor your own block if you mined it (you saw it first with 0 latency), 2) If neither is yours, favor the one you saw first ('first-seen' rule). This is why block races resolve - different parts of the network see different blocks first, but eventually one block gets a child mined on it and that chain becomes objectively longer."
+        },
+        {
+          "q": "How did payment processors detect double spends before Double Spend Proofs existed?",
+          "a": "Before DSP, services like BitPay connected to many nodes across the network and tracked which nodes sent an 'inv' message for each transaction. By monitoring transaction propagation across the network topology, they could detect if conflicting transactions existed. This wasn't about predicting which transaction would be mined - it was simply about detecting whether a double spend attempt occurred at all, which was enough to indicate high risk in a payment context."
+        },
+        {
+          "q": "If I send a low-fee transaction and later a higher-fee double spend, will a dsproof still be created?",
+          "a": "Yes! Any full node that receives a second conflicting transaction will generate a Double Spend Proof (dsproof), and it will be relayed by any node that has either transaction. So even if miners have different fee thresholds, the 0-conf scenario remains protected by DSP as long as the conflicting transactions reach any full nodes."
+        },
+        {
+          "q": "Are all BCH UTXOs stored in memory?",
+          "a": "No, UTXOs are stored on disk. Only when spending a UTXO does it get loaded into memory. This optimization is already built into the node implementations, so having many old unused UTXOs doesn't consume RAM - they only add to disk storage requirements."
+        },
+        {
+          "q": "Why does my Schnorr signature fail with 'Non-canonical DER signature' error?",
+          "a": "The signature is likely 64 bytes but should be 65 bytes for BCH. You need to append the hashtype byte (e.g., SIGHASH_ALL = 0x41) to the 64-byte Schnorr signature. The node interprets signatures without this byte as ECDSA (which requires DER encoding), causing the 'Non-canonical DER' error. Working with signatures is tricky - any error produces an entirely invalid result with minimal debugging information."
+        },
+        {
+          "q": "How do Nostr relays communicate with each other?",
+          "a": "They don't. Nostr is not peer-to-peer or federated. It's client-server where the client connects to many independent servers and does what it will with whatever data those servers serve. Relays don't sync with each other. The architecture is 'smart client, dumb relay.' Everything is glued together by pubkey crypto - you know a message is from someone because their notes are signed by their pubkey, regardless of which relay the note came from."
+        },
+        {
+          "q": "Why is the indexer (Fulcrum) separate from the node?",
+          "a": "Maintenance reasons. While it could be combined (BCHD does indexing), keeping them separate allows spreading services over multiple machines for better scaling. Some nodes do have indexing built-in, but separation is cleaner for deployment flexibility. The tradeoff is convenience vs. operational flexibility."
+        },
+        {
+          "q": "How does Chaingraph handle double spends differently than Electrum?",
+          "a": "Chaingraph remembers and serves double spends - if you query for UTXOs, you might get outputs from two conflicting transactions. Electrum provides a consistent (but not persistent) view - it won't show conflicting UTXOs, but will 'change its mind' if the winning transaction changes. Takeaways: (1) Double spends are normal and more common than expected, (2) Electrum always shows consistent chain state, (3) Chaingraph queries need careful filtering to exclude replaced transactions."
+        }
+      ]
+    },
+    {
+      "name": "Transaction Building",
+      "count": 13,
+      "faqs": [
+        {
+          "q": "Could read-only inputs cause MEV (Miner Extractable Value) issues on BCH?",
+          "a": "The concern is valid but not new. A miner could theoretically ignore transactions using a read-only UTXO while including a transaction that spends it fully, invalidating those transactions. However, this isn't fundamentally different from miner double-spends that are already possible. Miners throwing out read-only spends would be throwing away fees for no good reason. Read-only input implementation needs careful examination, but Cardano and Nexa have already implemented similar features."
+        },
+        {
+          "q": "What is header-first mining and why do miners use it?",
+          "a": "Header-first mining is when miners start mining on a new block immediately after receiving just the 80-byte header, before downloading and validating the full block. They mine an EMPTY block because they don't yet know the UTXO state (which transactions might conflict with the new block's transactions). This solves a hardware problem: miners can't turn off ASICs between blocks because the power fluctuations (0 to 100 amps instantly) damage equipment. So they either: 1) keep mining the old block (risking orphan), or 2) mine empty on new tip until validated. Most choose option 2."
+        },
+        {
+          "q": "Why doesn't Foundry (the largest BTC pool) use header-first mining?",
+          "a": "Foundry doesn't use header-first for several reasons: 1) BTC has 1MB block limit so block propagation bandwidth impact is insignificant, 2) As the majority hashrate pool, they have less to lose from the validation delay since smaller miners will still switch to Foundry's blocks first anyway, 3) With BTC's high fees, mining an empty block sacrifices significant revenue compared to BCH where fees are minimal."
+        },
+        {
+          "q": "Why doesn't DSP (Double Spend Proof) work for P2SH transactions?",
+          "a": "DSP only covers P2PKH transactions with specific requirements from the spec: 1) The transaction must contain all P2PKH inputs, 2) Either spending from confirmed UTXOs OR all mempool ancestors must also be all-P2PKH, 3) All inputs must be signed SIGHASH_ALL without ANYONECANPAY. If you have a P2SH ancestor in your 0-conf chain, the DSP 'score' is 0 - meaning NOT COVERED by DSPs. This is why not all 0-conf is equal - P2PKH from confirmed UTXOs has full DSP protection, but P2PKH descended from 0-conf P2SH has none."
+        },
+        {
+          "q": "Could minimum relay fees be automatically adjusted based on some on-chain metric?",
+          "a": "Research exists on using block difficulty as a price oracle for this purpose. There's correlation between PoW difficulty and USD price, which could allow fees to auto-adjust without relying on any third party - it's a pure on-chain metric. See bitcoincashresearch.org/t/research-block-difficulty-as-a-price-oracle/1426 for details on this approach."
+        },
+        {
+          "q": "Why does BCH have a dust limit and can it be removed?",
+          "a": "Dust limits control state bloat, which is critical for scaling. Without it, attackers could cheaply create millions of UTXOs that permanently stay in the UTXO set (Kaspa was attacked this way - see github.com/kaspanet/kips/blob/master/kip-0009.md). The per-byte transaction fee alone isn't sufficient to prevent state bloat attacks. The dust limit should be enforced on UTXO creation but not on spending - we want users to easily clean up and remove dust from state. One proposal is to halve the dust limit every 4 years, conditional on difficulty at least doubling (as a proxy for coin value growth)."
+        },
+        {
+          "q": "What does faster block time improve beyond 0-conf payments?",
+          "a": "Two main things: (1) AMM DeFi - these cannot use 0-conf because multiple users can compete for the same UTXO simultaneously. Until a block is mined, nobody knows which transaction will win. With 1-min blocks, wait time drops from 10-90 min to 1-9 min. (2) PR/perception - BCH appears 'snappier' with more confirmations in shorter timeframe. For regular payments, 0-conf handles everything fine."
+        },
+        {
+          "q": "Can miners game a hashrate-based price oracle by packing fake fees?",
+          "a": "This was debated. Including fees makes the oracle gameable - miners could pack blocks with their own transactions paying fees to themselves. However, there's a deterrent: if the block gets orphaned by chance, those packed transactions enter the mempool and other miners can claim those fees. Also, extreme fee packing (2x-3x normal) makes the block tempting for other miners to reorg and steal. Historical evidence from BTC shows miners haven't reorged to steal even massive accidental fees (hundreds of BTC) - the risk of starting a hashwar prevents it."
+        },
+        {
+          "q": "What is the x402 protocol for web micropayments?",
+          "a": "x402 is Coinbase's HTTP-based micropayment protocol using the HTTP 402 status code (Payment Required). It enables pay-per-API-call and pay-per-content models without traditional paywalls. The protocol is chain-agnostic - different implementations can support different cryptocurrencies. BCH with its low fees would be well-suited for this use case. The scheme is simple enough that BCH could build its own compatible economy around it, using stablecoins like PUSD for stable pricing."
+        },
+        {
+          "q": "How safe are multi-generational unconfirmed transaction chains on BCH?",
+          "a": "P2PKH transactions are not malleable (by third parties), and unconfirmed chains aren't uncommon on BCH. Risk increases if the chain includes anyone-can-spend style P2SH UTXOs. For all-P2PKH chains, you can check for DSP (Double Spend Proof) against every unconfirmed transaction. BCH fixed 3rd-party malleability but 1st/2nd-party malleability (by private key holders or multisig participants) is still possible."
+        },
+        {
+          "q": "Is BCH x402 protocol implementation being worked on?",
+          "a": "Yes - at least one developer is investigating x402 protocol implementation on BCH. The protocol (by Coinbase) is advertised as blockchain-agnostic and enables HTTP 402 payment responses. Work has started but was paused for other projects like BCH BLAZE workshops. Given BCH's low fees, it's well-suited for x402's micropayment use cases."
+        },
+        {
+          "q": "Are payment channels used in production on BCH?",
+          "a": "Payment channels have been possible on BCH (and Bitcoin before it) for over a decade. At least one party has been making thousands of payment channels on BCH regularly, though not using standard libraries. BCH can also implement eltoo (Decker-Russell-Osuntokun) channels. The p2s output type should help lower complexity for implementation. Payment channels are especially viable for 1:1 relationships like service providers and users."
+        },
+        {
+          "q": "Is UTXO contention a problem BCH needs to address?",
+          "a": "Yes - UTXO contention is a real issue BCH will need to face as usage grows. Chat apps that use shared UTXOs (like skynet.ar.io) encounter contention regularly. It's also easy to accidentally create double spends in automated systems that aren't mature yet. Protocol authors should recognize this is a place they don't want users to be and avoid shared UTXO patterns where possible. Exact tradeoffs in various solutions aren't yet clear."
+        }
+      ]
+    },
+    {
+      "name": "Testing & Development Tools",
+      "count": 1,
+      "faqs": [
+        {
+          "q": "In the CashAddr spec, why do test vectors use 'prefix:' literally as the prefix?",
+          "a": "It's just an example for implementers to test their code with any arbitrary prefix. The encoded checksum depends on the prefix used, so the spec provides test vectors with a generic 'prefix:' placeholder so developers can verify their implementation handles custom prefixes correctly. Real addresses use 'bitcoincash:' for mainnet or 'bchtest:' for testnet."
+        }
+      ]
+    },
+    {
+      "name": "dApp Development",
+      "count": 5,
+      "faqs": [
+        {
+          "q": "How can I add a BCH address to my Nostr profile for receiving tips?",
+          "a": "You can add a BCH address to your Nostr profile metadata using a custom field like 'bchAddr'. The Nostr data types and protocols already support this - you just add it to your kind 0 (metadata) event. For example: {\"name\": \"yourname\", \"bchAddr\": \"bitcoincash:qp...\"}. However, no major Nostr clients currently display or allow editing BCH addresses by default. For broader adoption, a coin-agnostic NIP proposal for tip addresses would help, where clients can auto-detect the coin type from the address format."
+        },
+        {
+          "q": "What is JeDex and how does it solve MEV?",
+          "a": "JeDex is a limit order exchange designed to solve MEV (Miner Extractable Value) and fairness in DEX execution. Unlike AMMs where miners can reorder transactions for profit, JeDex uses a queuing system. A limit order exchange is also more efficient use of capital than an AMM - no need for large liquidity pools. Still in proof-of-concept stage, no production deployments yet."
+        },
+        {
+          "q": "Does Nostr support group chats like Telegram?",
+          "a": "Yes - NIP28 defines the standards for group chats on Nostr relays. nostrchat.io is an open source front end that implements it. slpdex.com also uses NIP28 for its chat feature. These can't compete with well-funded companies like Telegram in terms of features and scale, but they enable chat apps that don't rely on centralized services. Note that NIP28 gets criticism - Fiatjaf called it a failure - but it works and people build software around it."
+        },
+        {
+          "q": "What is x402 and how has it been adapted for BCH?",
+          "a": "x402 is a protocol created by Coinbase leveraging the HTTP 402 'Payment Required' error code (created alongside 404 but never properly utilized). Coinbase's implementation focuses on USDC payments on Base L2. A BCH adaptation has been created that uses the same protocol structure but accepts Bitcoin Cash for payments. Video walkthroughs and documentation are available for developers wanting to implement x402 servers accepting BCH."
+        },
+        {
+          "q": "Can I convert a Nostr npub to a BCH address?",
+          "a": "No, you cannot directly convert a Nostr npub to a BCH address. Nostr uses secp256k1 keys (same curve as BCH), but an npub is a bech32-encoded public key, not a hash. BCH addresses are hashes of public keys. If you have access to the Nostr private key (nsec), you could derive both a BCH address and npub from it, but going from npub to BCH address would require the full public key bytes, then hashing them."
+        }
+      ]
+    },
+    {
+      "name": "General BCH Development",
+      "count": 11,
+      "faqs": [
+        {
+          "q": "How does block size affect propagation - is latency or bandwidth more important?",
+          "a": "It depends on block size: smaller blocks make latency more important, larger blocks make bandwidth more important. With 1MB blocks (like BTC), bandwidth impact on propagation is minimal - latency dominates. With larger blocks, bandwidth becomes the bottleneck. Header-first mining helps with bandwidth (80 bytes propagate instantly) but doesn't help with latency (still bound by physics/speed of light). BCH's actual orphan rate is very low - less than one block per week."
+        },
+        {
+          "q": "Do faster blocks hurt 0-conf (zero-confirmation) transactions?",
+          "a": "No, faster blocks do not negate nor hurt 0-conf at all. Zero-conf will always be the way forward for BCH instant payments. Faster blocks improve UX for use cases where 0-conf doesn't work (high-value transactions, exchanges, services requiring confirmations). The two approaches are complementary - faster blocks help cases where confirmations are needed, while 0-conf handles instant retail payments."
+        },
+        {
+          "q": "When is 0-conf appropriate vs when are confirmations needed?",
+          "a": "Zero-conf is appropriate for anonymous, cash-like transactions at lower amounts (what you'd pay with paper money). For higher-value transactions (houses, cars, >$2000), confirmations are fine because: 1) These payments aren't anonymous - you have a named invoice, 2) They're not real-time - rent payments are checked 'have you paid' after an hour/day/longer, 3) The recipient has legal recourse via identity. The key insight: as soon as a transaction is not anonymous or has a named invoice, there's literally no need for instant finality."
+        },
+        {
+          "q": "Why does waiting for 1 confirmation sometimes take 40+ minutes with 10-minute blocks?",
+          "a": "Block finding times follow an exponential distribution where the mean equals the target (10 minutes) but the median is different. The 50th percentile (median) wait for a 10-minute target is actually about 17 minutes, not 10. This means half the time you wait longer than 17 minutes for one confirmation, and occasionally much longer (40+ minutes). With a 2-minute target, the 50% wait would be about 3.4 minutes - 5x better. The benefit of faster blocks comes from reducing these long tail wait times."
+        },
+        {
+          "q": "Why does Tornado Cash use fixed deposit amounts?",
+          "a": "To make deposits indistinguishable. With variable amounts, you could trace a 3.2 BCH deposit to a 3.2 BCH withdrawal. By using fixed tiers (e.g., 1, 10, 100, 1000 BCH), all deposits of the same tier look identical. When you withdraw, the cryptographic proof shows 'someone who owns a deposit key is withdrawing' - but not which specific deposit from the pool."
+        },
+        {
+          "q": "Why do block timestamps sometimes look inaccurate?",
+          "a": "Block timestamp is used as extended nonce bits for mining. ASIC chips exhaust the 4-byte nonce space quickly, so miners roll the timestamp to generate more work without needing a new merkle root (which requires re-hashing the coinbase). The 'midstate' is the hash of the header up to the merkle root - the ASIC grinds the suffix (timestamp, target, nonce). When exhausted, controller provides a new midstate. This is why tightening timestamp accuracy rules would hurt miners."
+        },
+        {
+          "q": "How would BCH's ASERT difficulty adjustment handle faster blocks?",
+          "a": "ASERT is time-based, invariant of target block time. If it could halve/double difficulty after 2 days with 10-min blocks, that continues with 1-min blocks - the adjustment is just done in more frequent, smaller increments. Result: smoother adjustment, not faster. Shorter blocks also reduce lag during big hashrate disruptions. ASERT's elegant design adapts easily to different block times with minimal parameter changes."
+        },
+        {
+          "q": "What is the GigaHashCoin concept for a decentralized price oracle?",
+          "a": "GigaHashCoin proposes using mining difficulty and block reward as a trustless price oracle: GH/BCH = difficulty / block reward. Since mining difficulty is determined by the decentralized mining process itself, this oracle would be as decentralized as mining. With ASICs already far on the development S-curve (efficiency gains slowing), it should be less inflationary than fiat but still slightly inflationary. The oracle requires averaging price info over multiple blocks to reduce manipulation risk."
+        },
+        {
+          "q": "What are the key principles for a community DAO on BCH?",
+          "a": "Three fundamental principles: (1) Proportional voting rights based on contribution amount, (2) Ability to withdraw remaining funds at any time - this prevents trapping money and perverse incentives like 'we have money, let's vote on whom to gift it,' (3) When DAO pays out, it takes the same percentage from everyone's original payment. These mechanisms hold the DAO accountable and prevent the corruption seen in traditional community funds."
+        },
+        {
+          "q": "Where can I get BCH/USD price data for applications?",
+          "a": "For real-time prices: oracles.cash provides on-chain price data, or use REST APIs from BitPay and Coinbase that return simple JSON responses. For historical data: CoinGecko offers historical prices (though TOS is lengthy and reliability varies). Both BitPay and Coinbase have straightforward endpoints that don't require complex authentication for basic price queries."
+        },
+        {
+          "q": "What does 'non-final transaction' error mean in BCH?",
+          "a": "This error means your transaction's locktime is set to a block height or timestamp that hasn't occurred yet. The transaction will be rejected until the specified time/block is reached. To fix this, check the current blockheight and make sure your locktime doesn't use anything newer than it. If you don't need timelock functionality, set locktime to 0 or a past block height."
+        }
+      ]
+    }
+  ]
+}

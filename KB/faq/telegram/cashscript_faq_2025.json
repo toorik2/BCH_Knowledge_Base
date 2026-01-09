@@ -1,0 +1,530 @@
+{
+  "name": "CashScript FAQ",
+  "type": "telegram_extraction",
+  "source": "CashScript Telegram 2025",
+  "extraction_date": "2025-12-28",
+  "total_faqs": 114,
+  "categories": [
+    {
+      "name": "Language & Syntax",
+      "faqs": [
+        {
+          "q": "What language improvements are planned for CashScript?",
+          "a": "Planned improvements include: enforcing correct bytesX for .split() assignment, disallowing bytesX types in function arguments (as these are untrusted/unenforced), renaming tx.age to something like this.activeInputAge, new syntax for activeInput (this.activeInput instead of tx.inputs[this.activeInputIndex]), syntactic sugar for slice operations, creating a source map for optimized bytecode, struct functionality to ascribe names and lengths to parts of bytestrings. Longer term: template syntax for constructor arguments so they're inserted where needed rather than always pushed at the start, and better support for hand-optimized contracts."
+        },
+        {
+          "q": "What types of structs are planned for CashScript?",
+          "a": "Two types of struct are being considered: (1) Fixed-size 'bytestructs' that only support bytesX types, and (2) General variable-size 'structs' that support all types including bytes, int, and string. With bigint, casting to a fixed-bytesize might add large overhead, so both types will likely be needed in the long run."
+        },
+        {
+          "q": "Does CashScript support global constants?",
+          "a": "Currently, constants can only be defined within functions (like 'int constant CONTRACT_IN = 1'), and they get put on the stack, wasting opcodes on stack manipulation when used. Global constants that inline the value at compile time are a planned feature being tracked in GitHub issue #80."
+        },
+        {
+          "q": "How can multiple variable-sized data items be stored in a single bytestring in CashScript?",
+          "a": "Use length-prefixed encoding: each variable-length item is preceded by a byte indicating its length. For example: bytes1(completionBytecode.length()) + bytes(completionBytecode) + bytes1(feePayoutBytecode.length()) + bytes(feePayoutBytecode). This is essentially 'compiled OP_PUSH' - manually implementing what a push opcode does."
+        },
+        {
+          "q": "Has tx.age been changed in CashScript?",
+          "a": "Yes, tx.age has been renamed to this.age to indicate that it is a UTXO-level field, not a transaction-level field. This change was included in a CashScript release."
+        },
+        {
+          "q": "What's the difference between this.activeBytecode and tx.inputs[i].unlockingBytecode in CashScript?",
+          "a": "tx.inputs[i].unlockingBytecode represents the unlocking bytecode (scriptSig) of a specific input. this.activeBytecode represents the contract bytecode of the input currently being evaluated. The activeBytecode does NOT contain the unlocking arguments (function arguments, function selector). If you have multiple functions in a contract, there's a hidden/implicit function selector argument, but it won't be part of the activeBytecode."
+        },
+        {
+          "q": "When should I use fixed-size byte casting in CashScript?",
+          "a": "Casting an integer to a fixed-size byte-length is very important when storing local state in an nftCommitment. If you have multiple values concatenated in one field, you need fixed length for most items to be able to split them (or use length-indicators). See next.cashscript.org/docs/language/types#int-to-byte-casting"
+        },
+        {
+          "q": "What happens when casting bytes(n + 1) in CashScript? What's the length?",
+          "a": "When you convert bytes to integer, increment, then convert back to bytes, the length depends on whether the commitment is minimally encoded as an int or not. A commitment could be bytes8 of zeroes and the end result would only have length of 1. Casting to bytes without a length argument is a noop (no OP_NUM2BIN call). Only when you pass a length argument will you have the opcode, and overflow can occur if casting to a byte size too small for the number."
+        },
+        {
+          "q": "Will NUM2BIN overflow after the BigInt upgrade?",
+          "a": "No. NUM2BIN can't overflow the stack item but it can overflow max int. With BigInt, maxint==maxstack, so no more overflow. Any valid stack item will be convertible to a valid int through bin2num (though you may hit VM limits depending on your budget)."
+        },
+        {
+          "q": "Do I need to prefix hex strings with '0x' in CashScript contract params?",
+          "a": "No, you don't need to prefix hex strings with '0x' in the contract params. Just use the raw hex string."
+        },
+        {
+          "q": "Does CashScript support loops?",
+          "a": "Yes, CashScript @next version has a do-while looping construct. This feature was developed before the BCH Blaze Hackathon to make it available for participants. Documentation is available at next.cashscript.org/docs/language/contracts#loops-beta. Note that while the underlying VM Limits upgrade activated in May 2025, native loop opcodes (OP_BEGIN/OP_UNTIL) are part of the May 2026 upgrade."
+        },
+        {
+          "q": "How do I compile do-while loops in CashScript?",
+          "a": "Install `cashc@next` to compile do-while loops. You can also check the preview version of the CashScript playground which uses the @next version. The underlying opcodes are OP_BEGIN and OP_UNTIL. Note: v0.13.0-next.1 includes fixes for edge cases when using do-while loops with the SDK debug tooling."
+        },
+        {
+          "q": "Do nested loops work in CashScript?",
+          "a": "Yes, nested loops should work straightforwardly in CashScript. The documentation at next.cashscript.org/docs/language/contracts#loops-beta shows how loops work. If you have specific ASM code that needs nested loops, it can be converted to CashScript syntax."
+        },
+        {
+          "q": "Does CashScript support reusable functions?",
+          "a": "Not yet. CashScript currently has 'functions' that define spending/unlocking conditions on a contract, but these are not reusable code-blocks with typed inputs and outputs. They are evaluated scripts for which evaluation is valid or invalid. Reusable functions (with typed inputs/outputs usable across your code like in TypeScript) are planned but will take at least half a year of development work to integrate."
+        },
+        {
+          "q": "Will CashScript have global variables like Solidity?",
+          "a": "Global variables are planned for CashScript. However, they are 'global' only within the CashScript evaluation context - NOT global like ETH global state. For persistent state between transactions, you still need to use token commitments and carry your state with you. Global variables don't require new opcodes; it's a CashScript language feature that will improve code organization."
+        },
+        {
+          "q": "How do I get only part of a bytes value without using split's tuple?",
+          "a": "Use `.slice(start, end)` instead of `.split()` if you don't need the second part. For example, `commitment.slice(0, 5)` returns the first 5 bytes without creating a tuple. See cashscript.org/docs/language/types#bytes for details."
+        },
+        {
+          "q": "Why can't I assign a tuple to already declared variables?",
+          "a": "In CashScript, tuple destructuring assignment must happen when declaring the variables. You cannot assign a tuple to already declared variables. This is a language limitation - structure your code to declare variables at the point of splitting."
+        },
+        {
+          "q": "What is the type of tx.time and how do I convert it to bytes?",
+          "a": "tx.time is an int (bigint). To convert it to bytes for storing in an NFT commitment, use casting per cashscript.org/docs/language/types#casting-table. Note that tx.time represents the locktime value set in the transaction - you must set it via txBuilder.setLocktime() from the SDK."
+        },
+        {
+          "q": "Is there a proposal for adding loops to BCH script?",
+          "a": "Yes, there is a CHIP (Cash Improvement Proposal) for bounded looping operations: bitcoincashresearch.org/t/chip-2021-05-bounded-looping-operations/463"
+        },
+        {
+          "q": "Why propose dedicated registers for OP_EVAL code execution instead of using the stack?",
+          "a": "The stack already serves as a register - it can hold code to be executed. Dedicated registers would require additional opcodes to put code there. With OP_EVAL, code can come from anywhere: pushed directly, from introspection of other inputs/outputs, or constructed dynamically. The stack-based approach is simpler and more flexible."
+        }
+      ]
+    },
+    {
+      "name": "Transaction Building",
+      "faqs": [
+        {
+          "q": "Can you introspect the transaction fee inside a CashScript contract?",
+          "a": "No, the transaction fee is not a value you can introspect in BCH script. You would have to calculate the fee yourself inside the contract by summing all input values and subtracting all output values."
+        },
+        {
+          "q": "How should I handle transaction fees in CashScript contracts?",
+          "a": "You can hardcode a miner fee in the contract (like minerFee = 1000), but this isn't the actual tx fee - it's just how much the contract allows to release for fee payment. To tightly set the actual tx fee requires summing all input and output values. Since BCH script doesn't have loops, this isn't feasible for variable numbers of ins/outs, so contracts typically require fixed numbers of inputs and outputs. Adding `require(tx.inputs.length == 1)` would make a hardcoded fee match the actual fee."
+        },
+        {
+          "q": "Are smart contract transactions more expensive than regular signed transactions for splitting funds?",
+          "a": "No, a splitter contract transaction can actually be *smaller* than a custodian signing a spend that splits the coins. You can have a contract address that splits amounts 50:50 to address A and B; whenever someone sends to the contract, anyone can build a tx that executes the split. See unspent.app/documentation#divide for a dApp that sets this up."
+        },
+        {
+          "q": "How can I create a UTXO that only two specific parties can spend?",
+          "a": "This is what a 1-of-2 multisig address does. CashScript can create a contract address where UTXOs can only be spent by two different people/keypairs using a require statement for a list of Sig/pubkey, similar to Escrow.cash with optional recipients."
+        },
+        {
+          "q": "How do I create a transaction requiring inputs from two different parties?",
+          "a": "You need two scripts (two different P2SH addresses): Script1 says 'I can only be spent by person A and need to be next to an input with script2'. Script2 says 'I can only be spent by person B and need to be next to an input with script1'. Each UTXO can specify the full required transaction shape. If using multisig, there's only 1 script with no requirement of 2 UTXOs spent by different parties."
+        },
+        {
+          "q": "What does 'Locktime requirement not satisfied' error mean?",
+          "a": "This error means the transaction has a locktime that hasn't been reached yet. If you're using tx.time checks in your contract, you need to set the locktime with txb.setLocktime() to match your contract's requirements. Tip: Try setLocktime(0) first to isolate the issue, then set the proper value."
+        },
+        {
+          "q": "What does 'bad-txns-nonfinal, non-final transaction' error mean?",
+          "a": "This error means you set a blockheight as locktime which has not been reached yet by the blockchain. The transaction cannot be mined until the locktime is met. Check your setLocktime() value and ensure the blockchain has passed that time/block."
+        },
+        {
+          "q": "Why does my locktime transaction fail even though the time has passed?",
+          "a": "The blockchain doesn't have the exact time. It uses 'median time past' - a trailing measure because it's a decentralized system without an accurate real-time concept. When using tx.time with seconds-based locktime, you may need to wait longer than expected. The blockchain time can lag behind real-world time, causing transactions to be rejected as 'non-final' until the median time past catches up."
+        },
+        {
+          "q": "How does locktime work - is it block number or timestamp?",
+          "a": "Values less than 500,000,000 are interpreted as block numbers. Values 500,000,000 or higher are interpreted as Unix timestamps. This is set in the transaction via txBuilder.setLocktime(). From the contract, you check tx.time and compare with stored values."
+        },
+        {
+          "q": "How do I check the current block for absolute timelocks?",
+          "a": "In JavaScript: `const nextBlock = await provider.getBlockHeight()` then `txBuilder.setLocktime(nextBlock)`. In the contract, `tx.time` will contain the current block number when the locktime is set to a block height."
+        },
+        {
+          "q": "Is txb.build() async in CashScript?",
+          "a": "No, txb.build() is not async in CashScript. You don't need to await it."
+        },
+        {
+          "q": "How do I lock an output with P2S (Pay-to-Script) in CashScript?",
+          "a": "P2S is not yet supported as first-class in CashScript. However, the transaction builder allows sending to arbitrary Uint8 lockingBytecode (which enables P2S outputs). You'd manually construct the locking script from contract arguments + artifact compiled output. For general BCH documentation, see documentation.cash."
+        }
+      ]
+    },
+    {
+      "name": "SDK & API",
+      "faqs": [
+        {
+          "q": "What makes CashScript unique?",
+          "a": "What makes CashScript unique isn't advanced language features. It's the SDK with a great (fully overhauled) transaction builder API and integrated debugging functionality, plus the language tooling: online playground, contract testing-suite, syntax highlighting & auto-completion."
+        },
+        {
+          "q": "How can I create CashTokens using the CashScript SDK?",
+          "a": "Creating CashTokens (both fungible and non-fungible) with the CashScript SDK is easy using the advanced transaction builder. Simply add the `token` parameter to your transaction output: { to: contract.tokenAddress, amount: sendAmount, token: { amount: 100n, category: contractUtxos[0].txid } }. The 'advanced' transaction builder is being made the default in the next release."
+        },
+        {
+          "q": "What is the correct format for TransactionBuilder.addOutput()?",
+          "a": "The addOutput method takes an object parameter with 'to' and 'amount' properties: txb.addOutput({ to: address, amount: bigintValue }). Don't pass separate arguments. Refer to cashscript.org/docs/sdk/transaction-builder#addoutput--addoutputs for the correct signature."
+        },
+        {
+          "q": "What does 'missing inputs' error mean in CashScript?",
+          "a": "'Missing inputs' means your transaction is missing one or more inputs. It's related to transaction building, not signing. Check that you're correctly using transactionBuilder.addInput(someUtxo, someUnlocker) and try console.log(someUtxo) before adding it as an input to verify your UTXO data is correct."
+        },
+        {
+          "q": "Should I use TypeScript when developing with CashScript?",
+          "a": "Yes, strongly recommended. CashScript is a TypeScript library with full type checking from start to finish. Many errors that are difficult to debug in JavaScript would be caught immediately by TypeScript. For best integration, compile CashScript artifacts in .ts format using 'cashc --ts' flag."
+        },
+        {
+          "q": "Is there a Python version of the CashScript SDK?",
+          "a": "CashScript-Py (a Python version of the CashScript SDK) is being developed. Python is one of the most popular programming languages, and this project aims to attract new developers and enable a new category of BCH applications. See fundme.cash/campaign/37 for the crowdfunding campaign."
+        },
+        {
+          "q": "Do I need to match my cashc compiler version with my CashScript SDK version?",
+          "a": "Yes, to properly use the improved debug tooling, cashc v0.11 outputs additional data in the artifact. If you're on cashc v0.8 but cashscript v0.11, the debugging tooling is not as good. Both should be on the same major version."
+        },
+        {
+          "q": "Does CashScript produce JSON artifacts for contracts?",
+          "a": "Yes, CashScript produces ABI artifact JSON files during compilation. This artifact contains the contract's ABI (Application Binary Interface) including function definitions, parameter types, and the compiled bytecode. The artifact is used by the SDK to instantiate and interact with contracts. For working with contracts programmatically, use the TransactionBuilder API documented at cashscript.org/docs/sdk/transaction-builder."
+        },
+        {
+          "q": "Can the CashScript SDK manage non-CashScript scripts?",
+          "a": "Yes, the CashScript SDK can handle non-CashScript-based spend scripts. The TransactionBuilder has a generalized concept of 'unlockers' that allows this flexibility. However, it requires manual tinkering and there's no official documentation for this use case yet."
+        }
+      ]
+    },
+    {
+      "name": "Debugging & Testing",
+      "faqs": [
+        {
+          "q": "What debugging capabilities does the new CashScript transaction builder provide?",
+          "a": "The latest CashScript pre-release adds debugging capabilities to the new transaction builder. This allows the transaction builder to be used with local testing/debugging using mocknet as well as inside the Bitauth IDE. The old (simple) transaction builder has been marked as deprecated. A migration guide is available at next.cashscript.org/docs/releases/migration-notes"
+        },
+        {
+          "q": "Why is there a difference between CashScript's debugging bytecode and production bytecode?",
+          "a": "The contract bytecode is optimized for production, but the debugging tooling with Bitauth IDE uses the 'unoptimized bytecode' (found in artifact under debug.bytecode). This is a known issue where dev and prod are different. Workaround: Remove the 'debug' object from the artifact to use correct bytecode without the 2-way mapping, or switch to CashScript 0.10.5 which doesn't add debugging tooling and develop on chipnet."
+        },
+        {
+          "q": "Does CashScript's .debug() use the improved VM limits from May 2025?",
+          "a": "Only in the @next version of CashScript. The stable release includes it after the upgrade is deployed."
+        },
+        {
+          "q": "Is there a difference between CashScript's dev and prod bytecode now?",
+          "a": "As of v0.11.0, the sourcemap and debug info have been reworked to work with the contracts' optimized bytecode. This means your contracts are exactly the same in 'dev' as in 'prod'."
+        },
+        {
+          "q": "Why do I get 'Script evaluated without error but finished with a false/empty top stack element'?",
+          "a": "This error is most likely related to something in your contract logic, not the internal workings of the CashScript compiler. To debug, share your full contract and instructions to reproduce the error. Also ensure you're using matching versions of cashc and cashscript SDK - v0.11 of both is recommended as it significantly improves debug tooling."
+        },
+        {
+          "q": "How can I see the line-by-line mapping of CashScript to opcodes?",
+          "a": "Use the BitauthIDE debugging integration with `const uri = await transactionBuilder.getBitauthUri();`. This opens Bitauth IDE with: CashScript source code in comments on the right panel, compiled opcodes color-highlighted in the middle panel, and opcode execution results on the far right. Documentation at cashscript.org/docs/guides/debugging#bitauth-ide. Note: This requires full transaction context, not just the compiler."
+        },
+        {
+          "q": "Does mocknet support the upcoming BCH VM upgrades?",
+          "a": "Yes, mocknet allows you to configure which virtual machine is used for evaluation, so you can use BCH 2026. The CashScript @next branch has this set as the default mocknet configuration, allowing you to test contracts using the new opcodes before they activate on mainnet."
+        },
+        {
+          "q": "Can I use functions and loops in Bitauth IDE that aren't yet in CashScript?",
+          "a": "Yes. CashScript @next has do-while loops available now. Functions with the new opcodes can be used in Bitauth IDE, which is a lower-level tool. If you need features not yet in CashScript, Bitauth IDE provides direct access to the new BCH opcodes."
+        },
+        {
+          "q": "How can I debug high transaction fee errors in CashScript?",
+          "a": "Add logging before sending: `const totalInputAmount = transactionBuilder.inputs.reduce((acc, input) => acc + BigInt(input.valueSatoshis), 0n);` and `const totalOutputAmount = transactionBuilder.outputs.reduce((acc, output) => acc + BigInt(output.valueSatoshis), 0n);` Then calculate `txFeeSats = totalInputAmount - totalOutputAmount`. Also get `byteLength = transactionBuilder.build().length / 2`. High fee errors usually mean you're failing to account for some value in the inputs. The maximum fee safety options help catch these issues before accidentally burning funds."
+        },
+        {
+          "q": "Why can't I console.log tx introspection values in CashScript?",
+          "a": "You can only log variables, not introspection statements which still need to be evaluated at runtime. Assign the introspection value to a variable first, then log the variable."
+        },
+        {
+          "q": "Can I test multiple contracts in a single transaction in CashScript?",
+          "a": "Yes, the CashScript playground supports combining multiple different smart contracts into one transaction and provides great debugging results. A preview is available at cashscript-playground-git-multi-contract-lahana.vercel.app"
+        },
+        {
+          "q": "Does the CashScript playground require transaction confirmations to see UTXOs?",
+          "a": "No, the playground uses Electrum servers to fetch UTXOs so it doesn't require confirmations - it should show 0-conf UTXOs. If UTXOs aren't appearing immediately, the refresh button may have an issue. Note: Testing on mainnet is discouraged; mocknet is the default for a good reason."
+        },
+        {
+          "q": "What testing tools does CashScript v0.12.1 provide?",
+          "a": "CashScript v0.12.1 introduced a test extension for the Vitest test runner, making it easier to write and run tests for CashScript contracts. This integrates CashScript contract testing directly into modern JavaScript/TypeScript testing workflows."
+        }
+      ]
+    },
+    {
+      "name": "CashTokens",
+      "faqs": [
+        {
+          "q": "Is there documentation for using CashTokens with CashScript?",
+          "a": "Yes, a CashTokens guide has been created for the CashScript documentation. It covers creating, transferring, and managing CashTokens. See the CashScript documentation guides section."
+        },
+        {
+          "q": "What happens if I leave out a token from a CashScript transaction output?",
+          "a": "Leaving out a token just burns it. This is a common gotcha that surprises developers. If you have tokens in an input and don't include them in an output, they are permanently destroyed."
+        },
+        {
+          "q": "How can I check if a token is an NFT and what its capability is?",
+          "a": "The NFT capability is stored at the end of the tokenCategory with an extra byte. The first 32 bytes are the tokenCategory, and byte 33 indicates NFT capability if present: 0x (empty) = no NFT, 0x00 = immutable NFT, 0x01 = mutable NFT, 0x02 = minting NFT. Check `tx.inputs[i].tokenCategory.length > 32` to verify it's an NFT."
+        },
+        {
+          "q": "Why doesn't my token category match between contract and explorer?",
+          "a": "CashScript uses little endianness for tokenCategory, which is different from how explorers display it (big endianness). You need to reverse the byte order when comparing. There's a video explaining this at youtu.be/uDfOFlfo1aA?t=868."
+        },
+        {
+          "q": "What are common mistakes when working with token categories?",
+          "a": "Two common mistakes: 1) Script uses different endianness from explorers and transaction building - you may need to reverse byte order. 2) `.tokenCategory` appends the capability byte to the 32-byte tokenId, making it 33 bytes for NFTs. If you see '02' at the end, that's the minting capability byte. The documentation has clear warnings about these issues."
+        },
+        {
+          "q": "How can I merge NFTs in a contract?",
+          "a": "Burn the input NFTs by not including them in outputs, then create a new one. In the contract, require specific input categories and ensure they're not used in outputs while outputting a new NFT with the merged properties. This is essentially 'burn N and create 1' pattern."
+        },
+        {
+          "q": "How do I create an NFT collection using the Cash-Ninjas minting contract?",
+          "a": "The commands for creating NFT collections are documented in the README at github.com/cashninjas/minting-contract. The tooling has been used successfully for projects like the Pepi collection. For specific problems, ask in the CashScript Telegram group."
+        },
+        {
+          "q": "How do ERC20 tokens map to BCH's UTXO model?",
+          "a": "For basic fungible token functionality (creating, transferring, querying balances), use CashTokens native fungible tokens directly - no smart contracts needed. BCH has first-class support for fungible tokens at the protocol level. However, if you need advanced features like custom supply management, tokenomics hooks, or transfer restrictions, you would need to create a CashScript contract wrapper around the tokens. The key insight: basic ERC20 = native CashTokens; extended ERC20 = CashScript contract + CashTokens."
+        }
+      ]
+    },
+    {
+      "name": "State Management",
+      "faqs": [
+        {
+          "q": "How can I make a CashScript contract copy itself with modified constructor arguments?",
+          "a": "This is called 'simulated state'. Use this.activeBytecode to get the contract bytecode (includes constructor arguments but NOT unlocking arguments), split off the parts to replace, prepend new constructor arguments in reverse order with push byte prefixes (e.g., 0x14 for 20-byte push), hash the result and require output matches new LockingBytecodeP2SH32(newContractHash). Example at github.com/mr-zwets/RefreshContractV2. Note: The contract address changes each time. Storing state in NFT commitments (as BCH pump contract does) is now the preferred approach."
+        },
+        {
+          "q": "What is the best way to manage contract state in CashScript?",
+          "a": "Simulated state (modifying constructor arguments) is now considered an antipattern. The BCH pump contract demonstrates the superior approach: storing contract state externally in an NFT commitment. This keeps the contract address stable while allowing state changes."
+        },
+        {
+          "q": "Can I store data in a CashScript contract like Solidity?",
+          "a": "BCH does not have global state like Ethereum. Instead, create a CashToken NFT and store data in its commitment. This gives local transferrable state your contract can introspect to base decisions off and update if needed. The commitment size is currently max 40 bytes, increasing to 128 bytes with the May 2026 upgrade."
+        },
+        {
+          "q": "Why doesn't BCH have global state like Ethereum?",
+          "a": "It's actually an advantage - it's what sets BCH and the CashVM apart from ETH in terms of performance. Global state is considered bad for scalability. BCH uses a UTXO model where state is carried with tokens (NFT commitments). The XO stack may make this 'carry state with you' approach easier to manage in the future. You can achieve similar functionality to ETH contracts with slightly different patterns."
+        }
+      ]
+    },
+    {
+      "name": "Contract Design & Patterns",
+      "faqs": [
+        {
+          "q": "Why use CashScript smart contracts instead of a JavaScript server controlling funds?",
+          "a": "The key difference is custody and trustlessness. Smart contracts hold funds in a trustless manner where even the contract creator cannot access them. With a server, you control a pubkey and can change your code/payout anytime. Smart contracts commit to constraints that cannot be changed (e.g., 10% always goes to address A forever). CashScript is for creating on-chain enforced rules that don't require trusting an operator. The idea is 'code as law' - not needing courts, just code."
+        },
+        {
+          "q": "What is a practical example of a CashScript smart contract?",
+          "a": "A 'Last Will' inheritance contract: instead of giving someone custody of your BCH funds to process inheritance when you die, you give control to a smart contract where you still hold custody but after some idle time your relatives can claim the funds according to the contract rules. Example code is available at cashscript.org/docs/guides/covenants#restricting-p2sh-recipients"
+        },
+        {
+          "q": "What developer patterns is CashScript planning to support natively?",
+          "a": "The CashScript team has observed three patterns users have developed: (1) Defining structs as comments to track how to 'split' bytearrays, (2) Creating macros/re-usable functions on top of CashScript (like Fex.cash did for reusable constants across contract files), (3) Defining transaction shapes inside contract logic to give better mental models for input/output meaning. The team wants to support all these natively. Patterns 1 and 2 can take inspiration from existing languages like Solidity. Pattern 3 is unique to the UTXO model with introspection - no existing programming language has support for this, requiring novel language design research."
+        },
+        {
+          "q": "Are CashScript contracts deployed like Ethereum smart contracts?",
+          "a": "Think of BCH contracts as elaborate spending conditions rather than deployments. Some contracts have unique 'deployments' authenticated by a tokenId (like Moria, ParityUSD), while others are just spending scripts like multisig or vaults that share the same spending conditions and get a stable address. You can also put functions themselves on token commitments (if they fit in 128 bytes), giving you local transferrable functions."
+        },
+        {
+          "q": "Do CashScript contracts have an address and balance?",
+          "a": "Yes, you have an address and a list of UTXOs on the address. Depending on the type of contract you're making, you either care about the total 'balance' or you only care about specific UTXOs. For unique deployment contracts, you typically care about specific UTXOs authenticated by tokens."
+        },
+        {
+          "q": "How can I use a constructor argument that doesn't affect contract logic but differentiates addresses?",
+          "a": "Use a pattern like `require(index >= 0)` to use the index variable without actually changing the contract rules. This technique is used in unspent faucets to create unique addresses while keeping the same contract logic. It also avoids compiler warnings about unused variables."
+        },
+        {
+          "q": "How do I get the contract address inside a CashScript function?",
+          "a": "`this.activeBytecode` gets the contract's bytecode (including constructor arguments but NOT unlocking arguments). For the P2SH locking bytecode (closest thing to 'address' in script), use `tx.inputs[this.activeInputIndex].lockingBytecode`."
+        },
+        {
+          "q": "What's a good mental model for multi-contract systems?",
+          "a": "There are three main patterns: 1) Different contract identities with unique tokenIds and their own state (e.g., borrowing and pool contracts). 2) Sidecar contracts holding different fungible tokens from the main contract. 3) Breaking up complex functions into separate function contracts attached to a main verifier (e.g., add, withdraw, liquidate as separate contracts). For pattern 1, you have multiple primary contracts; for 2 and 3, you have primary and helper contracts. These patterns remain relevant even after CashScript gets functions."
+        },
+        {
+          "q": "Why does my factory contract produce different bytecode than CashScript's new Contract()?",
+          "a": "CashScript performs bytecode optimization by default. The artifact's debug.bytecode is unoptimized (used by Bitauth IDE debugging), while the actual contract bytecode is optimized and shorter. Solution: Use the CashScript-compiled (optimized) bytecode as the factory parameter instead of raw cashc-compiled bytecode. This ensures addresses match between factory-created contracts and new Contract() instances."
+        },
+        {
+          "q": "What is the current contract size limit in CashScript?",
+          "a": "Since the May 2025 VM Limits upgrade, the old 520-byte stack element limit has been increased to 10,000 bytes and the 201-opcode limit replaced by an operation cost system. The CashScript compiler may still warn about contract sizes for standardness reasons, but consensus limits are now much more generous. Check cashscript.org for current standardness limits."
+        }
+      ]
+    },
+    {
+      "name": "WalletConnect",
+      "faqs": [
+        {
+          "q": "Does CashScript have built-in WalletConnect support?",
+          "a": "Yes, CashScript v0.11.1 adds BCH WalletConnect integration. The TransactionBuilder now has a method to generate a BCH WalletConnect transaction object, which can be sent to a WC client for signing. This further simplifies BCH dapp development."
+        },
+        {
+          "q": "How do I integrate CashScript TransactionBuilder with WalletConnect?",
+          "a": "Use the generateWcSourceOutputs utility function to convert from CashScript transactionBuilder to WalletConnect object in 4 lines of code. Build the unsigned transaction, decode it, then call generateWcSourceOutputs(transactionBuilder.inputs, decodedTransaction). This is being considered for standardization in CashScript. See github.com/CashScript/cashscript/issues/191"
+        },
+        {
+          "q": "Is there a tutorial for adding WalletConnect to a CashScript dApp?",
+          "a": "Yes, there's a tutorial video titled 'Adding WalletConnect to your CashScript Dapp just got much easier!' at youtu.be/EPdtEyFEE8A"
+        },
+        {
+          "q": "How do I debug CashScript when using WalletConnect?",
+          "a": "When using WalletConnect, the transactionBuilder has placeholders, so transactionBuilder.debug() won't work directly. To test/debug, replace the placeholders with a test wallet using SignatureTemplate with a private key (WIF format or raw bytes). Get your WIF from your wallet and pass it to SignatureTemplate, then all debugging tooling works."
+        },
+        {
+          "q": "What are the limitations of datasigs with WalletConnect?",
+          "a": "WalletConnect via CashScript's generateWCTransactionObject() works well for standard signatures, but has limitations with data signatures (datasigs). The current implementation uses zero-byte placeholders for signatures that wallets populate. Datasigs are problematic because: (a) using a hash placeholder means the wallet blindly signs that hash, which has security implications, and (b) without a hash, the data length isn't deterministic, making zero-byte placeholders impractical."
+        }
+      ]
+    },
+    {
+      "name": "Security & Advanced Patterns",
+      "faqs": [
+        {
+          "q": "How can betting sites using BCH demonstrate they are fair?",
+          "a": "Betting sites are notorious for cheating. To win user trust, implement 'provably fair' verification where users can verify the randomness used. See satoshidice.com/fair for an example of how this works with cryptographic commitments."
+        },
+        {
+          "q": "Where can I find BCH atomic swap contracts for marketplaces?",
+          "a": "The 2-party atomic swap contract setup that BCA pioneered is used by tapswap.cash NFT marketplace. Code is available at gitlab.com/0353F40E/simple-swap. CashToken introspection opcodes help with coordinating UTXOs in these setups."
+        },
+        {
+          "q": "Can Schnorr signatures be used to aggregate multiple keys for CashScript validation?",
+          "a": "Yes. Schnorr signatures allow very simple multi-party aggregation schemes where multiple parties collaborate to produce one aggregated signature under one aggregated pubkey, checked with OP_CHECKSIG as in P2PKH addresses. The key trick is using interactive cryptography to cooperatively 'add together' the Schnorr keys of multiple parties and settle the transaction onchain as a P2PKH transaction. This enables smart contracts to regain privacy by hiding as regular P2PKH transactions. See gist.github.com/markblundeberg/a3aba3c9d610e59c3c49199f697bc38b for details."
+        },
+        {
+          "q": "What new documentation guides were added to CashScript?",
+          "a": "Two new guides were added to the CashScript documentation: 'Transaction Lifecycle' (cashscript.org/docs/guides/lifecycle) covering the full lifecycle of BCH transactions, and 'Adversarial Analysis' (cashscript.org/docs/guides/adversarial) covering security considerations for smart contracts. Both guides document knowledge that's general to BCH development and assumed for developers but wasn't previously written down anywhere."
+        },
+        {
+          "q": "Can BCH be used as a proxy chain to profit on swap rates between two other cryptos?",
+          "a": "Yes, this is conceptually how AnyHedge works (bchbull.com). You can earn or lose BCH based on the change in price against any supported asset. While specific assets like XMR aren't currently supported, they could be added. You could theoretically set up two different contracts to get near the same result for profiting on asset ratios. See bitcoincashpodcast.com/faqs/Tech/what-is-anyhedge for explanation."
+        },
+        {
+          "q": "Can CashScript be used to build prediction markets like Polymarket?",
+          "a": "Yes, CashScript can be used to build prediction market contracts. Unlike simple head-to-head betting that requires position matching, you can implement AMM-style markets where each position affects the yes/no price and users can enter/exit positions freely. Such markets can also support liquidity providers who stake BCH without taking positions, earning fees on trades. Complex math functions like LMSR (Logarithmic Market Scoring Rule) cost functions can be implemented using fixed-point arithmetic approximations since CashScript doesn't have floating-point or functions like exp()."
+        }
+      ]
+    },
+    {
+      "name": "Developer Tools",
+      "faqs": [
+        {
+          "q": "How do I install the CashScript syntax highlighting extension in Cursor editor?",
+          "a": "The CashScript extension is available on both VSCode Marketplace (marketplace.visualstudio.com/items?itemName=CashScript.cashscript-vscode) and Open VSX (open-vsx.org/extension/CashScript/cashscript-vscode). If you can't find it in Cursor by searching 'cashscript', try searching just 'cash'. You can also download the VSIX file directly from Open VSX and install it manually."
+        },
+        {
+          "q": "Does the CashScript VSCode extension support the latest CashScript features?",
+          "a": "Yes, the CashScript VSCode extension is updated with support for v0.11.0 features including: slice function, renamed tx.age to this.age, added missing completions & highlighting, and fixed hover information for contract and function signatures."
+        },
+        {
+          "q": "What other high-level languages compile to Bitcoin Script?",
+          "a": "sCrypt is a high-level language similar to CashScript that compiles to Bitcoin Script. It was originally developed for BSV and has a similar approach to defining smart contracts. Reference implementations of contracts like fixed-point math libraries and LMSR prediction markets exist in sCrypt that can serve as inspiration for CashScript implementations."
+        }
+      ]
+    },
+    {
+      "name": "Version Updates & Releases",
+      "faqs": [
+        {
+          "q": "What are the breaking changes in electrum-cash v4?",
+          "a": "The main breaking change in electrum-cash v4 was the removal of clustering. Release notes can be found at gitlab.com/electrum-cash/network/-/tags/v4.0.0"
+        },
+        {
+          "q": "When will CashScript v0.11.0 be released?",
+          "a": "CashScript v0.11.0 is planned for release with the BCH network upgrade on May 15th 2025. This release will include the update to electrum-cash v4+."
+        },
+        {
+          "q": "Will changes to constructor argument handling in CashScript be breaking?",
+          "a": "Yes, changes to how constructor arguments are handled (like inserting them where needed instead of always pushing at the start) would be breaking changes only introduced in v1. There will be either a compiler flag or syntax to opt out of new optimizations for users who compile contracts directly with cashc without using the CashScript SDK."
+        },
+        {
+          "q": "What's new in CashScript v0.11.0?",
+          "a": "This major release (over half a year in development) highlights debugging capabilities for the new transaction builder, enabling local testing/debugging using mocknet and inside Bitauth IDE. It contains improvements and breaking changes. Migration notes are updated at cashscript.org/docs/releases/migration-notes. The documentation received significant updates as well."
+        },
+        {
+          "q": "What's new in CashScript v0.11.3?",
+          "a": "CashScript v0.11.3 adds a new .slice(start, end) syntax and improved type safety around .split and .slice operations."
+        },
+        {
+          "q": "What's new in CashScript v0.11.4?",
+          "a": "CashScript v0.11.4 contains a bug fix for P2PKH-only transactions and a new feature for the MockNetworkProvider that allows you to simulate a real network more closely."
+        },
+        {
+          "q": "What's new in CashScript v0.11.5?",
+          "a": "CashScript v0.11.5 includes: input index in console.log statements for debugging, improved type inference for function and constructor arguments in the Contract class, replaced redundant dependencies, and removed accidental dependency inclusion of @types/node. The next major release v0.12.0 focuses on maintenance, internal refactors, testing and removing deprecated functionality."
+        },
+        {
+          "q": "What's new in CashScript v0.12.0?",
+          "a": "CashScript v0.12.0 includes: removal of the old deprecated Transaction Builder, several small breaking changes, getVmResourceUsage() to measure VM usage, new TransactionBuilder safety options, and several other small features. This release focuses on maintenance, internal refactors, testing, and removing deprecated functionality."
+        },
+        {
+          "q": "What features are expected in the May 2025 BCH upgrade for CashScript?",
+          "a": "The May 2025 upgrade (now active) enabled VM Limits removal and BigInt support, allowing more complex contracts. The May 2026 upgrade will add native loops, 128-byte NFT commitments (up from 40 bytes), and P2S standard. These features are already being designed for in experimental contracts like prediction markets."
+        }
+      ]
+    },
+    {
+      "name": "Learning Resources & Community",
+      "faqs": [
+        {
+          "q": "How do I learn CashScript?",
+          "a": "The best resource is the official website cashscript.org. Click the big 'Getting Started' button to access the documentation and tutorials."
+        },
+        {
+          "q": "Are there video tutorials for learning CashScript?",
+          "a": "Yes, there's an 'Intro to CashScript' tutorial series on YouTube: youtube.com/watch?v=Ft2jo9spIHg"
+        },
+        {
+          "q": "How can I quickly build a BCH dApp using CashScript?",
+          "a": "There's a video tutorial showing how to use CashScript and WalletConnect to build a dApp quickly: youtu.be/JJZq3bXMNIw titled 'Want to Build a BCH DApp? Here's my Blueprint!'"
+        },
+        {
+          "q": "Where can I learn CashScript through interactive challenges?",
+          "a": "There's a CashScript Arena challenge platform at arena.layer1.cash. Also a Telegram group t.me/CashScript_Arena where developers create and solve 'broken' or exploitable smart contract challenges. Complete beginners are welcome, and experienced developers help create challenges and answer questions."
+        },
+        {
+          "q": "Is there a BCH hackathon I can participate in?",
+          "a": "Yes, BCH Blaze 2025 is a virtual hackathon to build innovative projects on Bitcoin Cash using the latest network upgrades on Chipnet. It starts November 15th with up to 10 BCH in prizes plus tickets to BLISS 2026. Perfect for devs new to BCH or veterans. Register at dorahacks.io/hackathon/bchblaze2025/detail"
+        },
+        {
+          "q": "Where can I find reference CashScript contracts for inspiration?",
+          "a": "The CashScript website has a 'showcase' section at cashscript.org. The team isn't currently maintaining a full list of community contracts, but they'd welcome a community initiative repo where people can add PRs."
+        },
+        {
+          "q": "Where can I find a simple open source CashScript dApp example with UI?",
+          "a": "There's a dApp starter template at github.com/mainnet-pat/dapp-starter with a demo at dapp-starter-bch.vercel.app. Cash-Ninjas is also open source. For more reference implementations, check the showcase section at cashscript.org."
+        },
+        {
+          "q": "Where can I find advanced open-source CashScript contract examples?",
+          "a": "ParityUSD has open-sourced their smart contract source code - 26 contracts forming one of the most advanced applications built on BCH script. See parityusd.com/blog/open-source-contracts for the full code and documentation."
+        },
+        {
+          "q": "What interesting BCH project ideas would the CashScript team like to see built?",
+          "a": "Interesting project ideas include: visualizer/simulator for different AMM DEX curves, CashScript-py SDK (Python implementation), address analyzer (to check for privacy leaks), double spend proof (DSP) checker website, BCMR indexer in TypeScript. Also various WalletConnect apps: airdrop/dividends, vault, Last-Will inheritance, Mecenas recurring payments, 'Hodl', and AnyHedge."
+        },
+        {
+          "q": "How does the CashScript Contributors Fund work?",
+          "a": "The contributors fund compensates external contributors for contributions that would otherwise be unpaid. It's not a formal bounty system - the standard process is to consider payment after merging PRs from external contributors. The goal is to acknowledge, reward, and appreciate others who provide value to the CashScript project. Past recipients include contributors who worked on debugging capabilities for TransactionBuilder and contract argument typings integration."
+        },
+        {
+          "q": "Why am I getting API errors with code generated by AI assistants for CashScript?",
+          "a": "AI assistants sometimes make up CashScript API methods that don't exist. For example, 'setUnlocker' is not a function - AI hallucinated it. Always refer to the official CashScript documentation at cashscript.org/docs/sdk/transaction-builder for the correct API. Don't trust AI-generated code without verifying it against docs."
+        },
+        {
+          "q": "Why does AI sometimes generate inconsistent CashScript translations from Solidity?",
+          "a": "AI models are influenced by the massive amount of EVM examples in their training data, which pulls them toward 'centralized contract' patterns. When translating to UTXO/BCH, AI can generate inconsistent results (sometimes 0 contracts, sometimes complex multi-contract systems) because UTXO patterns are fundamentally different and less represented in training data. The community is still exploring how UTXO-based smart contract patterns will evolve."
+        }
+      ]
+    },
+    {
+      "name": "Example Contracts & Projects",
+      "faqs": [
+        {
+          "q": "Where can I find 'pump fun' style bonding curve contracts for BCH?",
+          "a": "The p-bond contracts implementing pump.fun style bonding curves are available at gitlab.com/0353F40E/p-bond. These contracts allow token launches with automated market making curves."
+        },
+        {
+          "q": "Where can I find an example of a recurring payments contract?",
+          "a": "There's a project called ARCC (Automated Recurring CashToken Contracts) that implements recurring payments. The contract code is at github.com/kiok46/arcc, with transaction building code at github.com/cashkit/arcc-poc. Note: With introspection now available, this approach can be simplified."
+        },
+        {
+          "q": "Is there a DAO template for building decentralized organizations on BCH?",
+          "a": "Yes, OpenCashDAO is a DAO template featuring voting, proposals, and an upgradable contract system. The design pattern has potential for many applications similar to BitCANN. Resources: bitcoincashresearch.org/t/opencashdao/1521 and github.com/OpenCashDAO/contracts"
+        }
+      ]
+    }
+  ]
+}
