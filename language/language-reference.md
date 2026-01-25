@@ -287,18 +287,19 @@ int blocks = int(stakeBlocks);
 
 ### CRITICAL: Chained Split Operations and Tuple Destructuring
 
-**Production contracts use chained splits for complex layouts:**
+**Use `.slice()` for middle extraction:**
 
 ```cashscript
 // PATTERN: Extract multiple values from middle of commitment
 // Layout: [other(31) + pledgeID(4) + campaignID(5)] = 40 bytes
 
-// Chained split: skip 31 bytes, then split remaining 9 bytes at position 4
-bytes4 pledgeID, bytes5 campaignID = unsafe_bytes4(tx.inputs[0].nftCommitment.split(31)[1].split(4)[0]), unsafe_bytes5(tx.inputs[0].nftCommitment.split(31)[1].split(4)[1]);
+// slice(start, end) returns bytes from start up to (but excluding) end
+bytes4 pledgeID = unsafe_bytes4(tx.inputs[0].nftCommitment.slice(31, 35));
+bytes5 campaignID = unsafe_bytes5(tx.inputs[0].nftCommitment.slice(35, 40));
 
 // Another example: extract middle field
 // Layout: [prefix(26) + endBlock(4) + suffix(10)]
-bytes4 endBlock = unsafe_bytes4(tx.inputs[0].nftCommitment.split(26)[1].split(4)[0]);  // Skip 26, take next 4
+bytes4 endBlock = unsafe_bytes4(tx.inputs[0].nftCommitment.slice(26, 30));
 ```
 
 **Tuple destructuring syntax (CRITICAL - often overlooked):**
@@ -659,7 +660,7 @@ contract King() {  // Empty constructor
         int colorTurn = turnCounter % 2;  // Whose turn is it?
 
         // Verify source piece belongs to current team
-        byte sourceTeam = tx.inputs[3].nftCommitment.split(6)[1].split(1)[0];
+        byte sourceTeam = unsafe_bytes1(tx.inputs[3].nftCommitment.slice(6, 7));
         require(int(sourceTeam) == colorTurn);
 
         // Validate movement rules (king moves 1 square any direction)
@@ -696,7 +697,7 @@ contract ChessMaster(bytes squareCategory, bytes pieceCategory) {
 contract Pawn() {  // Empty!
     function move() {
         // ONLY validates movement rules
-        byte piece = tx.inputs[3].nftCommitment.split(7)[1].split(1)[0];
+        byte piece = unsafe_bytes1(tx.inputs[3].nftCommitment.slice(7, 8));
         require(piece == 0x01);  // Must be pawn
 
         // Forward movement validation
@@ -723,16 +724,16 @@ contract Pawn() {  // Empty!
 
 function checkEmpty() {
     // Get previous square coordinates
-    byte prevX = tx.inputs[this.activeInputIndex - 1].nftCommitment.split(4)[1].split(1)[0];
-    byte prevY = tx.inputs[this.activeInputIndex - 1].nftCommitment.split(5)[1].split(1)[0];
+    byte prevX = unsafe_bytes1(tx.inputs[this.activeInputIndex - 1].nftCommitment.slice(4, 5));
+    byte prevY = unsafe_bytes1(tx.inputs[this.activeInputIndex - 1].nftCommitment.slice(5, 6));
 
     // Get current square coordinates
-    byte thisX = tx.inputs[this.activeInputIndex].nftCommitment.split(4)[1].split(1)[0];
-    byte thisY = tx.inputs[this.activeInputIndex].nftCommitment.split(5)[1].split(1)[0];
+    byte thisX = unsafe_bytes1(tx.inputs[this.activeInputIndex].nftCommitment.slice(4, 5));
+    byte thisY = unsafe_bytes1(tx.inputs[this.activeInputIndex].nftCommitment.slice(5, 6));
 
     // Get next square coordinates
-    byte nextX = tx.inputs[this.activeInputIndex + 1].nftCommitment.split(4)[1].split(1)[0];
-    byte nextY = tx.inputs[this.activeInputIndex + 1].nftCommitment.split(5)[1].split(1)[0];
+    byte nextX = unsafe_bytes1(tx.inputs[this.activeInputIndex + 1].nftCommitment.slice(4, 5));
+    byte nextY = unsafe_bytes1(tx.inputs[this.activeInputIndex + 1].nftCommitment.slice(5, 6));
 
     // Verify stepping pattern (must maintain direction)
     int stepToPrevX = int(thisX) - int(prevX);
@@ -740,7 +741,7 @@ function checkEmpty() {
     require(stepToPrevX == stepToNextX);  // Same direction
 
     // Verify this square is empty
-    byte currentTeam = tx.inputs[this.activeInputIndex].nftCommitment.split(6)[1].split(1)[0];
+    byte currentTeam = unsafe_bytes1(tx.inputs[this.activeInputIndex].nftCommitment.slice(6, 7));
     require(currentTeam == 0x02);  // Empty square
 }
 ```
@@ -836,7 +837,7 @@ function move() {
     int i = 4;  // Start after source square
     do {
         // Validate each intermediate square is empty
-        byte team = tx.inputs[i].nftCommitment.split(6)[1].split(1)[0];
+        byte team = unsafe_bytes1(tx.inputs[i].nftCommitment.slice(6, 7));
         require(team == 0x02);  // Empty
         i = i + 1;
     } while (i < tx.inputs.length - 1);  // Stop before destination
@@ -900,8 +901,8 @@ contract UTXOAuth() {
 ```cashscript
 contract CommitmentAuth() {
     function adminOnly() {
-        // Admin pubkeyhash stored in NFT commitment
-        bytes20 adminPkh = unsafe_bytes20(tx.inputs[0].nftCommitment.split(20)[1]);
+        // Admin pubkeyhash stored in NFT commitment (bytes 20-40)
+        bytes20 adminPkh = unsafe_bytes20(tx.inputs[0].nftCommitment.slice(20, 40));
         bytes adminBytecode = new LockingBytecodeP2PKH(adminPkh);
         require(tx.inputs[1].lockingBytecode == adminBytecode);  // Admin must provide input
     }
