@@ -4,7 +4,7 @@
 
 ### Contract Structure
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract ContractName(Type param1, Type param2) {
     function functionName(Type arg1, Type arg2) {
@@ -374,8 +374,8 @@ new ElectrumNetworkProvider('mainnet', 'server.example.com')
 
 ### Pragma Directive
 ```cashscript
-pragma cashscript ^0.12.1;  // Compatible with 0.11.x
-pragma cashscript >=0.10.0; // 0.10.0 and above
+pragma cashscript ^0.13.0;  // Compatible with 0.11.x
+pragma cashscript >=0.13.0; // 0.13.0 and above (recommended for new projects)
 ```
 
 ## Useful Resources

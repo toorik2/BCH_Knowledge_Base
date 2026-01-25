@@ -60,7 +60,7 @@ const artifact = compileFile('path/to/contract.cash');
 
 // Compile from string
 const contractCode = `
-    pragma cashscript ^0.12.1;
+    pragma cashscript ^0.13.0;
     contract SimpleContract(pubkey owner) {
         function spend(sig ownerSig) {
             require(checkSig(ownerSig, owner));
@@ -279,7 +279,7 @@ const contract2 = factory.createContract([pubkey2]);
 ```javascript
 function createTimeLockContract(owner, lockTime) {
     const artifact = compileString(`
-        pragma cashscript ^0.12.1;
+        pragma cashscript ^0.13.0;
         contract TimeLock(pubkey owner, int lockTime) {
             function spend(sig ownerSig) {
                 require(checkSig(ownerSig, owner));

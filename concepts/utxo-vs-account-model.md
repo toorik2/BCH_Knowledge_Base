@@ -449,7 +449,7 @@ contract UserBalance(bytes32 tokenCategory) {
         // Parse current balance from commitment
         bytes commitment = tx.inputs[0].nftCommitment;
         int balance = int(commitment.split(6)[0]);
-        bytes20 owner = bytes20(commitment.split(6)[1]);
+        bytes20 owner = unsafe_bytes20(commitment.split(6)[1]);
 
         // Validate sender owns this UTXO
         require(tx.inputs[1].lockingBytecode ==
@@ -462,12 +462,12 @@ contract UserBalance(bytes32 tokenCategory) {
         // Create output with reduced balance (or burn if zero)
         int newBalance = balance - amount;
         if (newBalance > 0) {
-            bytes newCommitment = bytes6(newBalance) + owner;
+            bytes newCommitment = toPaddedBytes(newBalance, 6) + owner;
             require(tx.outputs[0].nftCommitment == newCommitment);
         }
 
         // Create recipient output
-        bytes recipientCommitment = bytes6(amount) + recipientPkh;
+        bytes recipientCommitment = toPaddedBytes(amount, 6) + recipientPkh;
         require(tx.outputs[1].nftCommitment == recipientCommitment);
     }
 }

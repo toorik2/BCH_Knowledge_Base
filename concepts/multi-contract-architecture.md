@@ -288,7 +288,7 @@ contract Counter() {
         require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
         require(tx.outputs[0].value == tx.inputs[0].value);
         require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
-        require(tx.outputs[0].nftCommitment == bytes8(newCount)); // Changed!
+        require(tx.outputs[0].nftCommitment == toPaddedBytes(newCount, 8)); // Changed!
     }
 }
 ```
@@ -594,9 +594,9 @@ contract ProposalCounter() {
         require(tx.outputs[2].tokenAmount == tx.inputs[2].tokenAmount);
         // Commitment validated by VotingBooth (vote count increment)
         // But we still verify structure is preserved
-        bytes4 proposalIdx = bytes4(tx.inputs[2].nftCommitment.split(4)[0]);
-        bytes32 proposalName = bytes32(tx.inputs[2].nftCommitment.split(12)[1]);
-        bytes8 newVoteCount = bytes8(tx.outputs[2].nftCommitment.split(4)[1].split(8)[0]);
+        bytes4 proposalIdx = unsafe_bytes4(tx.inputs[2].nftCommitment.split(4)[0]);
+        bytes32 proposalName = unsafe_bytes32(tx.inputs[2].nftCommitment.split(12)[1]);
+        bytes8 newVoteCount = unsafe_bytes8(tx.outputs[2].nftCommitment.split(4)[1].split(8)[0]);
         require(tx.outputs[2].nftCommitment.split(4)[0] == proposalIdx);
         require(tx.outputs[2].nftCommitment.split(12)[1] == proposalName);
     }

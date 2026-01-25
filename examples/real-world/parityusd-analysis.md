@@ -180,8 +180,8 @@ int beingRedeemed = int(beingRedeemedBytes);
 ```cashscript
 // Reconstruct state with updates
 bytes newCommitment = 0x01
-    + bytes6(newBorrowedAmount)
-    + bytes6(newBeingRedeemed)
+    + toPaddedBytes(newBorrowedAmount, 6)
+    + toPaddedBytes(newBeingRedeemed, 6)
     + remainingState;
 
 // Enforce output has new state
@@ -355,7 +355,7 @@ balances[user] = 100;
 CashScript:
 ```cashscript
 // NO MAPPING EXISTS. State IS the NFT commitment.
-bytes commitment = 0x01 + bytes6(balance) + pubkeyhash;
+bytes commitment = 0x01 + toPaddedBytes(balance, 6) + pubkeyhash;
 require(tx.outputs[0].nftCommitment == commitment);
 ```
 

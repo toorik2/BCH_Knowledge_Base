@@ -13,7 +13,7 @@ This document showcases production-ready CashScript patterns used in real Bitcoi
 ### 1. Automated Market Maker (AMM)
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract SimpleAMM(
     bytes32 tokenACategory,
@@ -69,7 +69,7 @@ contract SimpleAMM(
 ### 2. Lending Protocol
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract LendingPool(
     bytes32 collateralTokenCategory,
@@ -139,7 +139,7 @@ contract LendingPool(
 ### 3. NFT Marketplace
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract NFTMarketplace(
     bytes32 nftCategory,
@@ -209,7 +209,7 @@ contract NFTMarketplace(
 ### 4. Gaming Item Upgrade
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract GameItemUpgrade(
     bytes32 itemCategory,
@@ -267,7 +267,7 @@ contract GameItemUpgrade(
 ### 5. Decentralized Autonomous Organization (DAO)
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract SimpleDAO(
     bytes32 governanceTokenCategory,
@@ -360,7 +360,7 @@ contract SimpleDAO(
 ### 6. Streaming Payments
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract StreamingPayment(
     pubkey subscriber,
@@ -406,7 +406,7 @@ contract StreamingPayment(
 ### 7. Price Feed Oracle
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract PriceFeedOracle(
     pubkey[] oracles,
@@ -474,7 +474,7 @@ contract PriceFeedOracle(
 ### 8. Corporate Treasury
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract CorporateTreasury(
     pubkey[] executives,
@@ -800,7 +800,7 @@ The following patterns are derived from analysis of ParityUSD, a production stab
 When a contract needs to hold multiple token categories, use a sidecar to hold additional tokens:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 /*  --- TokenSidecar Immutable NFT State ---
     none (validates relationship only)
@@ -844,7 +844,7 @@ contract TokenSidecar() {
 When a contract has many operations, split into function contracts authenticated by NFT identifier bytes:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 /*  --- MainRouter Mutable NFT State ---
     bytes1 identifier = 0xFF           // Router identifier
@@ -903,7 +903,7 @@ contract MainRouter(bytes32 systemTokenId) {
 Each function contract validates its authority and specific operation:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 /*  --- FunctionA Immutable NFT State ---
     bytes1 identifier = 0x00           // Function A identifier
@@ -949,7 +949,7 @@ contract FunctionA(bytes32 systemTokenId) {
 Pattern for contracts that must persist with updated state:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 /*  --- StatefulCovenant Mutable NFT State ---
     bytes4 counter = 0x00000000
@@ -986,7 +986,7 @@ contract StatefulCovenant(bytes32 covenantCategory) {
         require(newTotal < 140737488355327); // bytes6 max
 
         // Reconstruct commitment with new state
-        bytes newCommitment = bytes4(newCounter) + bytes6(newTotal) + adminPkh;
+        bytes newCommitment = toPaddedBytes(newCounter, 4) + toPaddedBytes(newTotal, 6) + adminPkh;
 
         // THE 5-POINT VALIDATION CHECKLIST
         // 1. Same contract code
@@ -1008,7 +1008,7 @@ contract StatefulCovenant(bytes32 covenantCategory) {
 Pattern for contracts that need to verify other contracts in the same transaction:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract CrossContractValidator(
     bytes32 priceOracleCategory,
@@ -1063,7 +1063,7 @@ contract CrossContractValidator(
 Pattern for creating immutable receipts that prove actions occurred:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 contract ReceiptIssuer(bytes32 systemCategory) {
     //////////////////////////////////////////////////////////////////////////////////////////
@@ -1088,9 +1088,9 @@ contract ReceiptIssuer(bytes32 systemCategory) {
         // Build receipt commitment
         // Layout: recipientPkh(20) + amount(6) + actionId(4) + timestamp(4) = 34 bytes
         bytes receiptCommitment = recipientPkh +
-                                  bytes6(amount) +
-                                  bytes4(actionId) +
-                                  bytes4(tx.locktime);
+                                  toPaddedBytes(amount, 6) +
+                                  toPaddedBytes(actionId, 4) +
+                                  toPaddedBytes(tx.locktime, 4);
 
         // Create IMMUTABLE receipt (no capability byte = immutable)
         bytes recipientBytecode = new LockingBytecodeP2PKH(recipientPkh);
@@ -1111,7 +1111,7 @@ contract ReceiptIssuer(bytes32 systemCategory) {
 Pattern for proving an NFT was legitimately created by the system:
 
 ```cashscript
-pragma cashscript ^0.12.1;
+pragma cashscript ^0.13.0;
 
 /*  --- OriginEnforcer Immutable NFT State ---
     bytes32 factoryTxHash

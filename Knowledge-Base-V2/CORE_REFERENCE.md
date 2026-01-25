@@ -59,10 +59,10 @@ CashScript:
 | Type | Size | Operations | Methods | Conversions |
 |------|------|-----------|---------|-------------|
 | `bool` | 1 bit | `! && \|\| == !=` | - | - |
-| `int` | Variable | `+ - * / % < <= > >= == !=` | - | `bytes(int)` `bytesN(int)` |
+| `int` | Variable | `+ - * / % < <= > >= == !=` | - | `bytes(int)` `toPaddedBytes(int, N)` |
 | `string` | Variable | `+ == !=` | `.length` `.reverse()` `.split(i)` `.slice(s,e)` | `bytes(string)` |
 | `bytes` | Variable | `+ == != & \| ^` | `.length` `.reverse()` `.split(i)` `.slice(s,e)` | - |
-| `bytesN` | N bytes (1-64) | Same as bytes | Same as bytes | `bytesN(any)` |
+| `bytesN` | N bytes (1-64) | Same as bytes | Same as bytes | `unsafe_bytesN(bytes)` |
 | `pubkey` | 33 bytes | `== !=` | - | Auto to bytes |
 | `sig` | ~65 bytes | `== !=` | - | Auto to bytes |
 | `datasig` | ~64 bytes | `== !=` | - | Auto to bytes |
@@ -89,11 +89,11 @@ Only `bytes1` through `bytes8` can be cast to `int`. Larger bounded bytes types 
 
 ```cashscript
 // OK
-bytes8 amount = bytes8(commitment.slice(0, 8));
+bytes8 amount = unsafe_bytes8(commitment.slice(0, 8));
 require(int(amount) > 0);
 
 // COMPILE ERROR
-bytes16 liquidity = bytes16(commitment.slice(0, 16));
+bytes16 liquidity = unsafe_bytes16(commitment.slice(0, 16));
 require(int(liquidity) > 0);  // ❌ "Type 'bytes16' is not castable to type 'int'"
 ```
 
@@ -194,7 +194,9 @@ new LockingBytecodeNullData(bytes[] chunks)    // OP_RETURN data output
 | `checkMultiSig` | `([sig, ...], [pubkey, ...])` | `bool` | Multi-sig. NOT in TypeScript SDK |
 | `checkDataSig` | `(datasig, bytes, pubkey)` | `bool` | Data signature. NULLFAIL applies |
 | `bytes` | `(any)` | `bytes` | Type conversion |
-| `bytesN` | `(any)` | `bytesN` | Fixed-length conversion (pads/truncates) |
+| `toPaddedBytes` | `(int value, int length)` | `bytes` | Pads int to fixed-length bytes (NUM2BIN). v0.13+ |
+| `unsafe_bytesN` | `(bytes)` | `bytesN` | Semantic cast to bytesN. No length validation. v0.13+ |
+| `unsafe_bool` | `(any)` | `bool` | Semantic boolean cast without conversion. v0.13+ |
 
 ---
 
@@ -359,10 +361,10 @@ const options = {
 **split()** - Best for extracting from START or END, or sequential destructuring:
 ```cashscript
 // First 20 bytes
-bytes20 ownerPkh = bytes20(commitment.split(20)[0]);
+bytes20 ownerPkh = unsafe_bytes20(commitment.split(20)[0]);
 
 // Last 4 bytes (of 40-byte commitment)
-bytes4 suffix = bytes4(commitment.split(36)[1]);
+bytes4 suffix = unsafe_bytes4(commitment.split(36)[1]);
 
 // Sequential destructuring
 bytes20 owner, bytes rest = commitment.split(20);
@@ -372,7 +374,7 @@ bytes8 balance, bytes rest2 = rest.split(8);
 **slice()** - Best for extracting from the MIDDLE:
 ```cashscript
 // Bytes 64-71 from commitment
-bytes8 reserveBytes = bytes8(commitment.slice(64, 72));
+bytes8 reserveBytes = unsafe_bytes8(commitment.slice(64, 72));
 int reserve = int(reserveBytes);
 ```
 
@@ -381,10 +383,10 @@ int reserve = int(reserveBytes);
 ```
 Commitment: [field0(20) | field1(8) | field2(32) | field3(4)] = 64 bytes
 
-Field 0 (offset 0, size 20):   bytes20(commitment.split(20)[0])
-Field 1 (offset 20, size 8):   bytes8(commitment.slice(20, 28))
-Field 2 (offset 28, size 32):  bytes32(commitment.slice(28, 60))
-Field 3 (offset 60, size 4):   bytes4(commitment.split(60)[1])
+Field 0 (offset 0, size 20):   unsafe_bytes20(commitment.split(20)[0])
+Field 1 (offset 20, size 8):   unsafe_bytes8(commitment.slice(20, 28))
+Field 2 (offset 28, size 32):  unsafe_bytes32(commitment.slice(28, 60))
+Field 3 (offset 60, size 4):   unsafe_bytes4(commitment.split(60)[1])
 ```
 
 ---
@@ -397,11 +399,11 @@ Field 3 (offset 60, size 4):   bytes4(commitment.split(60)[1])
 // Layout: userPkh(20) + reserved(18) + lockBlocks(2) = 40 bytes total
 
 // WRITE: Pack into commitment
-require(tx.outputs[0].nftCommitment == userPkh + bytes18(0) + bytes2(lockBlocks));
+require(tx.outputs[0].nftCommitment == userPkh + toPaddedBytes(0, 18) + toPaddedBytes(lockBlocks, 2));
 
 // READ: Unpack from commitment
-bytes20 storedPkh = bytes20(tx.inputs[0].nftCommitment.split(20)[0]);
-bytes2 stakeBlocks = bytes2(tx.inputs[0].nftCommitment.split(38)[1]);
+bytes20 storedPkh = unsafe_bytes20(tx.inputs[0].nftCommitment.split(20)[0]);
+bytes2 stakeBlocks = unsafe_bytes2(tx.inputs[0].nftCommitment.split(38)[1]);
 int blocks = int(stakeBlocks);
 ```
 
@@ -411,11 +413,11 @@ int blocks = int(stakeBlocks);
 // Update only last N bytes
 bytes restCommitment = tx.inputs[0].nftCommitment.split(31)[0];
 int newPledgeID = int(pledgeID) + 1;
-require(tx.outputs[0].nftCommitment == restCommitment + bytes4(newPledgeID) + campaignID);
+require(tx.outputs[0].nftCommitment == restCommitment + toPaddedBytes(newPledgeID, 4) + campaignID);
 
 // Update only first N bytes
 bytes existingTail = tx.inputs[0].nftCommitment.split(2)[1];
-require(tx.outputs[0].nftCommitment == bytes2(newFee) + existingTail);
+require(tx.outputs[0].nftCommitment == toPaddedBytes(newFee, 2) + existingTail);
 ```
 
 ### Common Layouts (40 bytes)
@@ -487,7 +489,7 @@ require(tx.outputs[0].value == 1000);  // Safe dust for token UTXO
 require(tx.outputs[0].value == tx.inputs[0].value - 3000);  // fee + dust
 
 // Fee collection into contract
-bytes2 stakeFee = bytes2(tx.inputs[0].nftCommitment.split(2)[0]);
+bytes2 stakeFee = unsafe_bytes2(tx.inputs[0].nftCommitment.split(2)[0]);
 require(tx.outputs[0].value == tx.inputs[0].value + int(stakeFee));
 ```
 

@@ -450,7 +450,7 @@ function pledge(int pledgeAmount) {
 
     // Receipt contains proof data
     require(tx.outputs[1].nftCommitment ==
-        bytes6(pledgeAmount) + bytes21(0) + endBlock + bytes4(pledgeID) + campaignID
+        toPaddedBytes(pledgeAmount, 6) + toPaddedBytes(0, 21) + endBlock + toPaddedBytes(pledgeID, 4) + campaignID
     );
 }
 ```
@@ -536,14 +536,14 @@ require(tx.outputs[0].tokenCategory == 0x);  // Pure BCH only
 **Vulnerable**:
 ```cashscript
 int newID = int(currentID) + 1;
-require(tx.outputs[0].nftCommitment == bytes4(newID) + rest);
+require(tx.outputs[0].nftCommitment == toPaddedBytes(newID, 4) + rest);
 ```
 
 **Secure**:
 ```cashscript
 int newID = int(currentID) + 1;
 require(newID != 2147483647);  // Check BEFORE using
-require(tx.outputs[0].nftCommitment == bytes4(newID) + rest);
+require(tx.outputs[0].nftCommitment == toPaddedBytes(newID, 4) + rest);
 ```
 
 ---

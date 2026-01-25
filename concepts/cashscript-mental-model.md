@@ -185,7 +185,7 @@ require(identifier == 0x01);  // Validate this is indeed a loan
 ```cashscript
 // Keep fixed parts, update variable parts
 bytes20 fixedPartLoanState = loanState.split(20)[0];
-bytes27 newLoanCommitment = fixedPartLoanState + nextInterestRate + bytes5(interestManagerConfiguration);
+bytes27 newLoanCommitment = fixedPartLoanState + nextInterestRate + toPaddedBytes(interestManagerConfiguration, 5);
 ```
 
 ### First Byte as Type Identifier

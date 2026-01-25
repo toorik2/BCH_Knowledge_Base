@@ -157,7 +157,7 @@ CashScript integers use Bitcoin's Script Number encoding:
 - Sign bit in MSB of last byte
 - NOT standard 2's complement
 
-Use `int(bytes)` for parsing, `bytesN(int)` for encoding. Always specify exact byte lengths.
+Use `int(bytes)` for parsing, `toPaddedBytes(int, N)` for encoding, and `unsafe_bytesN(bytes)` for semantic casts. Always specify exact byte lengths.
 
 ## Key External Resources
 
