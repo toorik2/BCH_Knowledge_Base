@@ -595,10 +595,10 @@ contract ProposalCounter() {
         // Commitment validated by VotingBooth (vote count increment)
         // But we still verify structure is preserved
         bytes4 proposalIdx = unsafe_bytes4(tx.inputs[2].nftCommitment.split(4)[0]);
-        bytes32 proposalName = unsafe_bytes32(tx.inputs[2].nftCommitment.split(12)[1]);
-        bytes8 newVoteCount = unsafe_bytes8(tx.outputs[2].nftCommitment.split(4)[1].split(8)[0]);
+        bytes32 proposalName = unsafe_bytes32(tx.inputs[2].nftCommitment.slice(12, 44));
+        bytes8 newVoteCount = unsafe_bytes8(tx.outputs[2].nftCommitment.slice(4, 12));
         require(tx.outputs[2].nftCommitment.split(4)[0] == proposalIdx);
-        require(tx.outputs[2].nftCommitment.split(12)[1] == proposalName);
+        require(tx.outputs[2].nftCommitment.slice(12, 44) == proposalName);
     }
 }
 ```
