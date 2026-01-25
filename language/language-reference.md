@@ -101,12 +101,12 @@ require(tx.outputs[0].nftCommitment == toPaddedBytes(newID, 4) + restOfCommitmen
 | `tx.inputs[i].outpointIndex` | `int` | UTXO source output index | - |
 | `tx.inputs[i].sequenceNumber` | `int` | nSequence value | Relative timelock in v2 tx only |
 | `tx.inputs[i].tokenCategory` | `bytes` | Input token category | 32-byte ID + optional capability (0x01=mutable, 0x02=minting) |
-| `tx.inputs[i].nftCommitment` | `bytes` | Input NFT commitment | CashTokens, max 40 bytes (128 in May 2026) |
+| `tx.inputs[i].nftCommitment` | `bytes` | Input NFT commitment | CashTokens, max 128 bytes |
 | `tx.inputs[i].tokenAmount` | `int` | Input fungible tokens | CashTokens, max 64-bit |
 | `tx.outputs[i].value` | `int` | Output satoshi amount | Bounds: `i < tx.outputs.length` |
 | `tx.outputs[i].lockingBytecode` | `bytes` | Output script bytecode | - |
 | `tx.outputs[i].tokenCategory` | `bytes` | Output token category | 32-byte ID + optional capability (0x01=mutable, 0x02=minting) |
-| `tx.outputs[i].nftCommitment` | `bytes` | Output NFT commitment | CashTokens, max 40 bytes (128 in May 2026) |
+| `tx.outputs[i].nftCommitment` | `bytes` | Output NFT commitment | CashTokens, max 128 bytes |
 | `tx.outputs[i].tokenAmount` | `int` | Output fungible tokens | CashTokens |
 | `this.activeInputIndex` | `int` | Current input being evaluated | - |
 
@@ -191,7 +191,7 @@ Critical when minting NFTs exist - without this check, minting capability allows
 
 **Size limits**:
 - 40 bytes (current)
-- 128 bytes (May 2026 upgrade)
+- 128 bytes
 
 **Pattern**: Contract introspects input commitment, enforces output commitment with updated state.
 ```cashscript
@@ -210,7 +210,7 @@ contract StatefulContract(bytes32 stateTokenCategory) {
 
 **Key concepts**:
 - **Local transferrable state**: NFT commitments persist across transactions
-- **Local transferrable functions**: Store function logic in 128-byte commitments (post-May 2026)
+- **Local transferrable functions**: Store function logic in 128-byte commitments
 - **NOT OP_RETURN**: OP_RETURN is provably unspendable (funds burned), not for storage
 
 ## OP_RETURN OUTPUTS
@@ -268,7 +268,7 @@ contract Message(bytes message) {
 
 ## STRUCTURED COMMITMENT PACKING
 
-**NFT commitments (40 bytes current, 128 in May 2026) require careful layout planning**. Production contracts pack multiple values with explicit byte positions:
+**NFT commitments (128 bytes max) require careful layout planning**. Production contracts pack multiple values with explicit byte positions:
 
 ```cashscript
 // PRODUCTION PATTERN: Pack multiple values into commitment (40 bytes current)
@@ -324,7 +324,7 @@ bytes existingTail = tx.inputs[0].nftCommitment.split(2)[1];  // Keep last 38 by
 require(tx.outputs[0].nftCommitment == toPaddedBytes(newFee, 2) + existingTail);
 ```
 
-**Common layouts (40 bytes current, 128 in May 2026)**:
+**Common layouts (128 bytes max)**:
 ```
 [pubkeyhash(20) + fee(2) + adminPkh(18)]                    // Admin contract
 [pubkeyhash(20) + reserved(18) + blocks(2)]                 // Time-locked
@@ -930,7 +930,7 @@ function anyFunction() {
 | Arithmetic | `+ - * / %` | `int` | Integer only, div/0 fails |
 | Comparison | `< <= > >= == !=` | `int` `bool` `bytes` `string` | - |
 | Logical | `! && ||` | `bool` | NO short-circuit (all operands evaluated) |
-| Bitwise | `& | ^` | `bytes` only | AND, OR, XOR only. NOT supported on int. No shift or invert |
+| Bitwise | `& | ^ ~ << >>` | `bytes`: all; `int`: `<< >>` only | AND, OR, XOR, invert, left/right shift |
 | Concatenation | `+` | `string` `bytes` | - |
 | Unary | `+ - !` | `int` `bool` | - |
 
@@ -994,21 +994,25 @@ do {
 
 ### Bitwise Operations
 ```cashscript
-// Supported: AND, OR, XOR (on bytes ONLY, NOT int)
+// Supported on bytes: AND, OR, XOR, shift, invert
 bytes flags = 0xFF;
-bytes masked = flags & 0x0F;     // AND for masking
-bytes combined = a | b;          // OR for combining
-bytes toggled = a ^ b;           // XOR for toggling
+bytes masked = flags & 0x0F;      // AND for masking
+bytes combined = a | b;           // OR for combining
+bytes toggled = a ^ b;            // XOR for toggling
+bytes inverted = ~flags;          // Bitwise invert
+bytes shifted = flags << 2;       // Left shift
+bytes rightShift = flags >> 1;    // Right shift
 
-// For bit flag validation, use bytes types:
-bytes1 configFlags = 0x05;       // Example: active=1, paused=0, borrowEnabled=1
+// Shift also works on int (arithmetic shift)
+int value = 16;
+int doubled = value << 1;         // 32
+int halved = value >> 1;          // 8
+
+// For bit flag validation:
+bytes1 configFlags = 0x05;        // Example: active=1, paused=0, borrowEnabled=1
 require((configFlags & 0x01) == 0x01);  // Check bit 0 is set
 require((configFlags & 0x04) == 0x00);  // Check bit 2 is clear
 ```
-**Note**: CashScript does NOT support:
-- Bitwise operators on `int` types (use `bytes` instead)
-- Shift operators (`<<`, `>>`)
-- Bitwise NOT (`~`)
 
 ### Array Bounds
 ```cashscript
@@ -1154,7 +1158,7 @@ contract MasterReference() {
 1. **`this.activeInputIndex`** - Always validate which input is executing the contract
 2. **Exact counts** - Use `==` not `>=` for input/output validation
 3. **UTXO authorization** - Prove ownership by spending UTXOs, not signatures
-4. **Structured commitments** - Pack multiple values into commitment (40 bytes, 128 in May 2026) with clear layout
+4. **Structured commitments** - Pack multiple values into commitment (128 bytes max) with clear layout
 5. **Capability manipulation** - `.split(32)[0] + 0x01` to change NFT capabilities
 6. **Fee accounting** - Explicit dust (1000 sats) and fee subtraction
 7. **Optional outputs** - Use `if` blocks for variable output counts
@@ -1181,7 +1185,7 @@ contract MasterReference() {
 | `for/while` loops | `do {} while()` | Beta in v0.13.0, body executes first |
 
 **Key paradigm shifts:**
-- **No persistent state** - State lives in NFT commitments (40 bytes, 128 in May 2026)
+- **No persistent state** - State lives in NFT commitments (128 bytes max)
 - **No O(1) lookups** - Must loop over UTXOs, no hash tables
 - **No code reuse** - No import/library/inheritance mechanisms
 - **Fee = tx size** - Cost based on bytes, not opcodes (no "gas optimization")
@@ -1226,9 +1230,9 @@ contract MasterReference() {
 - Array access: ALWAYS validate `.length` before indexing
 - Integer arithmetic: no decimals, integer division only
 - `checkMultiSig`: NOT supported in TypeScript SDK (compile-time only)
-- NFT commitment: max 40 bytes (128 bytes in May 2026 upgrade)
+- NFT commitment: max 128 bytes
 - String/bytes operations: `.split(index)` returns tuple, requires destructuring
-- Bitwise operators: Only `&`, `|`, `^` supported. NO shift (`<<`, `>>`) or invert (`~`)
+- Bitwise operators: `&`, `|`, `^`, `~` on bytes; `<<`, `>>` on both bytes and int
 - Loops: `do {} while ()` syntax, beta in CashScript 0.13.0. Body executes at least once
 - Token category byte order: Returned in unreversed order
 - Compound assignment: NOT supported (`+=`, `-=`, etc.)
