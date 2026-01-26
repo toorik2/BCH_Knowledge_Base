@@ -159,6 +159,17 @@ CashScript integers use Bitcoin's Script Number encoding:
 
 Use `int(bytes)` for parsing, `toPaddedBytes(int, N)` for encoding, and `unsafe_bytesN(bytes)` for semantic casts. Always specify exact byte lengths.
 
+## When to Use unsafe_bytesX()
+
+| Method | Returns | Cast Needed? |
+|--------|---------|--------------|
+| `.slice(start, end)` with **literal ints** | bounded `bytesN` | No |
+| `.split(i)` | unbounded `bytes` tuple | Yes, use `unsafe_bytesX()` |
+| `.reverse()` on `bytesN` | same `bytesN` | No |
+| `bytes()` conversion | unbounded `bytes` | Yes if need bounded |
+
+**Why**: Literal integers carry size information at compile time, so `.slice(0, 8)` returns `bytes8` directly.
+
 ## Key External Resources
 
 - [CashScript Documentation](https://cashscript.org/docs/)

@@ -88,12 +88,12 @@ BCH Script uses sign-magnitude encoding: the MSB of the last byte indicates sign
 Only `bytes1` through `bytes8` can be cast to `int`. Larger bounded bytes types cause a compile error:
 
 ```cashscript
-// OK
-bytes8 amount = unsafe_bytes8(commitment.slice(0, 8));
+// OK - slice with literal bounds returns bounded bytes directly
+bytes8 amount = commitment.slice(0, 8);
 require(int(amount) > 0);
 
-// COMPILE ERROR
-bytes16 liquidity = unsafe_bytes16(commitment.slice(0, 16));
+// COMPILE ERROR - bytes16 cannot cast to int
+bytes16 liquidity = commitment.slice(0, 16);
 require(int(liquidity) > 0);  // ❌ "Type 'bytes16' is not castable to type 'int'"
 ```
 
@@ -371,10 +371,10 @@ bytes20 owner, bytes rest = commitment.split(20);
 bytes8 balance, bytes rest2 = rest.split(8);
 ```
 
-**slice()** - Best for extracting from the MIDDLE:
+**slice()** - Best for extracting from the MIDDLE (literal bounds return bounded bytes):
 ```cashscript
-// Bytes 64-71 from commitment
-bytes8 reserveBytes = unsafe_bytes8(commitment.slice(64, 72));
+// Bytes 64-71 from commitment - slice returns bytes8 directly
+bytes8 reserveBytes = commitment.slice(64, 72);
 int reserve = int(reserveBytes);
 ```
 
@@ -384,8 +384,8 @@ int reserve = int(reserveBytes);
 Commitment: [field0(20) | field1(8) | field2(32) | field3(4)] = 64 bytes
 
 Field 0 (offset 0, size 20):   unsafe_bytes20(commitment.split(20)[0])
-Field 1 (offset 20, size 8):   unsafe_bytes8(commitment.slice(20, 28))
-Field 2 (offset 28, size 32):  unsafe_bytes32(commitment.slice(28, 60))
+Field 1 (offset 20, size 8):   commitment.slice(20, 28)   // slice returns bytes8
+Field 2 (offset 28, size 32):  commitment.slice(28, 60)  // slice returns bytes32
 Field 3 (offset 60, size 4):   unsafe_bytes4(commitment.split(60)[1])
 ```
 

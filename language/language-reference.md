@@ -46,12 +46,12 @@ Only `bytes1` through `bytes8` can be cast to `int`. Larger bounded bytes types 
 | `bytes9-bytes64` | ❌ | "Type 'bytesN' is not castable to type 'int'" |
 
 ```cashscript
-// OK - bytes8 or smaller
-bytes8 amount = unsafe_bytes8(commitment.slice(0, 8));
+// OK - bytes8 or smaller (.slice with literal bounds returns bounded bytes)
+bytes8 amount = commitment.slice(0, 8);
 require(int(amount) > 0);
 
 // COMPILE ERROR - bytes16 cannot cast to int
-bytes16 liquidity = unsafe_bytes16(commitment.slice(0, 16));
+bytes16 liquidity = commitment.slice(0, 16);
 require(int(liquidity) > 0);  // ❌ Error!
 ```
 
@@ -293,13 +293,13 @@ int blocks = int(stakeBlocks);
 // PATTERN: Extract multiple values from middle of commitment
 // Layout: [other(31) + pledgeID(4) + campaignID(5)] = 40 bytes
 
-// slice(start, end) returns bytes from start up to (but excluding) end
-bytes4 pledgeID = unsafe_bytes4(tx.inputs[0].nftCommitment.slice(31, 35));
-bytes5 campaignID = unsafe_bytes5(tx.inputs[0].nftCommitment.slice(35, 40));
+// slice(start, end) with literal bounds returns bounded bytesN directly
+bytes4 pledgeID = tx.inputs[0].nftCommitment.slice(31, 35);
+bytes5 campaignID = tx.inputs[0].nftCommitment.slice(35, 40);
 
 // Another example: extract middle field
 // Layout: [prefix(26) + endBlock(4) + suffix(10)]
-bytes4 endBlock = unsafe_bytes4(tx.inputs[0].nftCommitment.slice(26, 30));
+bytes4 endBlock = tx.inputs[0].nftCommitment.slice(26, 30);
 ```
 
 **Tuple destructuring syntax (CRITICAL - often overlooked):**
@@ -364,8 +364,8 @@ int reserve = int(commitment.split(72)[0].split(8)[1]);
 // .split(8)[1] → bytes64 (72-8=64 bytes!), NOT bytes8!
 // ERROR: "Type 'bytes64' is not castable to type 'int'"
 
-// CORRECT: Use slice() for middle extraction
-bytes8 reserveBytes = unsafe_bytes8(commitment.slice(64, 72));  // bytes 64-71
+// CORRECT: Use slice() for middle extraction (literal bounds → bounded bytes)
+bytes8 reserveBytes = commitment.slice(64, 72);  // bytes 64-71
 int reserve = int(reserveBytes);
 
 // CORRECT: Use split() for head extraction
@@ -384,10 +384,10 @@ bytes4 timestamp = unsafe_bytes4(rest2.split(4)[0]);
 ```
 Commitment: [field0(20) | field1(8) | field2(32) | field3(4)] = 64 bytes
 
-Field 0 (offset 0, size 20):   unsafe_bytes20(commitment.split(20)[0])
-Field 1 (offset 20, size 8):   unsafe_bytes8(commitment.slice(20, 28))
-Field 2 (offset 28, size 32):  unsafe_bytes32(commitment.slice(28, 60))
-Field 3 (offset 60, size 4):   unsafe_bytes4(commitment.split(60)[1])
+Field 0 (offset 0, size 20):   unsafe_bytes20(commitment.split(20)[0])  // split needs cast
+Field 1 (offset 20, size 8):   commitment.slice(20, 28)                 // slice returns bytes8
+Field 2 (offset 28, size 32):  commitment.slice(28, 60)                 // slice returns bytes32
+Field 3 (offset 60, size 4):   unsafe_bytes4(commitment.split(60)[1])  // split needs cast
 ```
 
 ## DUST AND FEE ACCOUNTING
@@ -660,7 +660,7 @@ contract King() {  // Empty constructor
         int colorTurn = turnCounter % 2;  // Whose turn is it?
 
         // Verify source piece belongs to current team
-        byte sourceTeam = unsafe_bytes1(tx.inputs[3].nftCommitment.slice(6, 7));
+        byte sourceTeam = tx.inputs[3].nftCommitment.slice(6, 7);
         require(int(sourceTeam) == colorTurn);
 
         // Validate movement rules (king moves 1 square any direction)
@@ -697,7 +697,7 @@ contract ChessMaster(bytes squareCategory, bytes pieceCategory) {
 contract Pawn() {  // Empty!
     function move() {
         // ONLY validates movement rules
-        byte piece = unsafe_bytes1(tx.inputs[3].nftCommitment.slice(7, 8));
+        byte piece = tx.inputs[3].nftCommitment.slice(7, 8);
         require(piece == 0x01);  // Must be pawn
 
         // Forward movement validation
@@ -723,17 +723,17 @@ contract Pawn() {  // Empty!
 // Inputs represent: source -> empty squares -> destination
 
 function checkEmpty() {
-    // Get previous square coordinates
-    byte prevX = unsafe_bytes1(tx.inputs[this.activeInputIndex - 1].nftCommitment.slice(4, 5));
-    byte prevY = unsafe_bytes1(tx.inputs[this.activeInputIndex - 1].nftCommitment.slice(5, 6));
+    // Get previous square coordinates (.slice with literal bounds returns bounded bytes)
+    byte prevX = tx.inputs[this.activeInputIndex - 1].nftCommitment.slice(4, 5);
+    byte prevY = tx.inputs[this.activeInputIndex - 1].nftCommitment.slice(5, 6);
 
     // Get current square coordinates
-    byte thisX = unsafe_bytes1(tx.inputs[this.activeInputIndex].nftCommitment.slice(4, 5));
-    byte thisY = unsafe_bytes1(tx.inputs[this.activeInputIndex].nftCommitment.slice(5, 6));
+    byte thisX = tx.inputs[this.activeInputIndex].nftCommitment.slice(4, 5);
+    byte thisY = tx.inputs[this.activeInputIndex].nftCommitment.slice(5, 6);
 
     // Get next square coordinates
-    byte nextX = unsafe_bytes1(tx.inputs[this.activeInputIndex + 1].nftCommitment.slice(4, 5));
-    byte nextY = unsafe_bytes1(tx.inputs[this.activeInputIndex + 1].nftCommitment.slice(5, 6));
+    byte nextX = tx.inputs[this.activeInputIndex + 1].nftCommitment.slice(4, 5);
+    byte nextY = tx.inputs[this.activeInputIndex + 1].nftCommitment.slice(5, 6);
 
     // Verify stepping pattern (must maintain direction)
     int stepToPrevX = int(thisX) - int(prevX);
@@ -741,7 +741,7 @@ function checkEmpty() {
     require(stepToPrevX == stepToNextX);  // Same direction
 
     // Verify this square is empty
-    byte currentTeam = unsafe_bytes1(tx.inputs[this.activeInputIndex].nftCommitment.slice(6, 7));
+    byte currentTeam = tx.inputs[this.activeInputIndex].nftCommitment.slice(6, 7);
     require(currentTeam == 0x02);  // Empty square
 }
 ```
@@ -837,7 +837,7 @@ function move() {
     int i = 4;  // Start after source square
     do {
         // Validate each intermediate square is empty
-        byte team = unsafe_bytes1(tx.inputs[i].nftCommitment.slice(6, 7));
+        byte team = tx.inputs[i].nftCommitment.slice(6, 7);
         require(team == 0x02);  // Empty
         i = i + 1;
     } while (i < tx.inputs.length - 1);  // Stop before destination
@@ -902,7 +902,7 @@ contract UTXOAuth() {
 contract CommitmentAuth() {
     function adminOnly() {
         // Admin pubkeyhash stored in NFT commitment (bytes 20-40)
-        bytes20 adminPkh = unsafe_bytes20(tx.inputs[0].nftCommitment.slice(20, 40));
+        bytes20 adminPkh = tx.inputs[0].nftCommitment.slice(20, 40);
         bytes adminBytecode = new LockingBytecodeP2PKH(adminPkh);
         require(tx.inputs[1].lockingBytecode == adminBytecode);  // Admin must provide input
     }
@@ -1215,6 +1215,8 @@ contract MasterReference() {
 - Fixed-length types: `bytesN` where N ∈ [1, 64]
 - Collections: arrays limited (mainly `sig[]`, `pubkey[]` for checkMultiSig)
 - Tuples: only from `split()` operations
+- **`.slice()` returns bounded bytes**: `.slice(start, end)` with literal int bounds returns `bytesN` where N = end - start. No cast needed.
+- **`.split()` returns unbounded bytes**: `.split(i)` returns tuple of unbounded `bytes`. Use `unsafe_bytesN()` to cast when bounded type is needed.
 
 ### Operational Limits
 
