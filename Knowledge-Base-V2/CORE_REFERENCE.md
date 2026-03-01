@@ -304,20 +304,21 @@ console.log('Balance:', await contract.getBalance());
 ### Transaction Building
 
 ```javascript
-import { SignatureTemplate } from 'cashscript';
+import { TransactionBuilder, SignatureTemplate } from 'cashscript';
 
 const sigTemplate = new SignatureTemplate(privateKey);
+const contractUtxos = await contract.getUtxos();
 
 // Simple spend
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to('bitcoincash:qr...', 1000n)
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxos[0], contract.unlock.spend(sigTemplate))
+    .addOutput({ to: 'bitcoincash:qr...', amount: 1000n })
     .send();
 
 // With CashTokens
-const txDetails = await contract.functions
-    .transfer(sigTemplate)
-    .to({
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxos[0], contract.unlock.transfer(sigTemplate))
+    .addOutput({
         to: 'bitcoincash:qr...',
         amount: 1000n,
         token: {
@@ -328,28 +329,29 @@ const txDetails = await contract.functions
     .send();
 
 // With NFT
-const txDetails = await contract.functions
-    .mintNFT(sigTemplate)
-    .to({
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxos[0], contract.unlock.mintNFT(sigTemplate))
+    .addOutput({
         to: 'bitcoincash:qr...',
         amount: 1000n,
         token: {
             category: '1234...abcdef',
+            amount: 0n,
             nft: {
                 capability: 'mutable',  // 'none', 'mutable', 'minting'
-                commitment: Buffer.from('data-here')
+                commitment: 'data-here-hex'
             }
         }
     })
     .send();
 ```
 
-### Address Types
+### Contract Types
 
 ```javascript
 const options = {
     provider: provider,
-    addressType: 'p2sh32'  // default, more secure
+    contractType: 'p2sh32'  // default, more secure
     // or 'p2sh20' (legacy) or 'p2s' (direct script, more efficient)
 };
 ```

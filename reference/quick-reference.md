@@ -154,39 +154,34 @@ const provider = new ElectrumNetworkProvider('mainnet');
 const contract = new Contract(artifact, constructorArgs, { provider });
 ```
 
-### Basic Transaction
+### Basic Transaction (TransactionBuilder)
 ```javascript
 const sigTemplate = new SignatureTemplate(privateKey);
 
-const txDetails = await contract.functions
-    .functionName(arg1, arg2)
-    .to('bitcoincash:address', amount)
-    .send();
-```
-
-### Advanced Transaction Builder
-```javascript
 const txDetails = await new TransactionBuilder({ provider })
-    .addInput(utxo, unlockingScript)
-    .addOutput({ to: address, amount: amount })
-    .setMaxFee(1000n)
+    .addInput(utxo, contract.unlock.functionName(arg1, arg2))
+    .addOutput({ to: 'bitcoincash:address', amount: amount })
     .send();
 ```
 
-### Transaction Options
+### TransactionBuilder Options
 ```javascript
-contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withFeePerByte(1.1)           // Custom fee rate
-    .withHardcodedFee(1000n)       // Fixed fee
-    .withMinChange(5000n)          // Minimum change
-    .withoutChange()               // No change output
-    .withOpReturn(['data'])        // OP_RETURN output
-    .withTime(timestamp)           // Time lock
-    .withAge(blocks)               // Age lock
-    .send();
+new TransactionBuilder({
+    provider,                              // NetworkProvider (required)
+    maximumFeeSatoshis: 2000n,             // Max fee safety check
+    maximumFeeSatsPerByte: 2.0,            // Max fee per byte
+    allowImplicitFungibleTokenBurn: false,  // Default: false
+})
+    .addInput(utxo, unlocker)              // Add input with unlocker
+    .addInputs(utxos, unlocker)            // Add multiple inputs
+    .addOutput({ to, amount, token? })     // Add output
+    .addOpReturnOutput(['0x6d02', 'msg'])  // OP_RETURN output
+    .setLocktime(timestamp)                // Absolute time lock
+    .send();                               // Send (async)
+    // .build();                           // Build hex (sync)
 ```
+
+> The `contract.functions` simple transaction builder was removed in v0.13.0.
 
 ## CashTokens Integration
 
@@ -304,23 +299,18 @@ contract Oracle(pubkey oraclePk) {
 
 ### Debug Techniques
 ```javascript
-// Debug transaction
-const debugInfo = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .debug();
+const txBuilder = new TransactionBuilder({ provider })
+    .addInput(utxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount });
 
-// Build without sending
-const txHex = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .build();
+// Debug transaction locally
+const debugResult = txBuilder.debug();
+
+// Build without sending (synchronous, returns hex)
+const txHex = txBuilder.build();
 
 // Generate debug URI
-const uri = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .bitauthUri();
+const uri = txBuilder.getBitauthUri();
 ```
 
 ## Security Checklist
@@ -353,16 +343,19 @@ new ElectrumNetworkProvider('mainnet')
 new ElectrumNetworkProvider('chipnet')
 
 // Custom server
-new ElectrumNetworkProvider('mainnet', 'server.example.com')
+new ElectrumNetworkProvider('mainnet', { hostname: 'server.example.com' })
 ```
 
-### Address Types
+### Contract Types
 ```javascript
 // P2SH32 (default, more secure)
-{ addressType: 'p2sh32' }
+{ contractType: 'p2sh32' }
 
 // P2SH20 (legacy, less secure)
-{ addressType: 'p2sh20' }
+{ contractType: 'p2sh20' }
+
+// P2S (direct script, more efficient)
+{ contractType: 'p2s' }
 ```
 
 ## Version Compatibility

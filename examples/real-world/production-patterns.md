@@ -620,8 +620,8 @@ class ProductionTransactionBuilder {
             throw new Error('Invalid transaction ID');
         }
         
-        if (txDetails.fee && txDetails.fee > this.gasLimit) {
-            console.warn('Transaction fee exceeds limit:', txDetails.fee);
+        if (!txDetails.hex) {
+            console.warn('Transaction hex missing from details');
         }
     }
 }
@@ -655,8 +655,9 @@ class MultiContractOrchestrator {
                     throw new Error(`Contract ${contractName} not found`);
                 }
                 
-                const txDetails = await contract.functions[functionName](...args)
-                    .to(outputs.address, outputs.amount)
+                const txDetails = await new TransactionBuilder({ provider: this.provider })
+                    .addInput(outputs.utxo, contract.unlock[functionName](...args))
+                    .addOutput({ to: outputs.address, amount: outputs.amount })
                     .send();
                 
                 results.push({
@@ -724,64 +725,53 @@ class MultiContractOrchestrator {
 ```javascript
 describe('Production Contract Tests', () => {
     let contract, provider, sigTemplate;
-    
+
     beforeEach(async () => {
         provider = new ElectrumNetworkProvider('chipnet');
         contract = new Contract(artifact, constructorArgs, { provider });
         sigTemplate = new SignatureTemplate(testPrivateKey);
     });
-    
+
     describe('Security Tests', () => {
         it('should prevent unauthorized access', async () => {
             const maliciousSig = new SignatureTemplate(randomPrivateKey);
-            
+            const utxos = await contract.getUtxos();
+
             await expect(
-                contract.functions
-                    .spend(maliciousSig)
-                    .to(testAddress, 1000n)
-                    .send()
-            ).rejects.toThrow('Script failed');
-        });
-        
-        it('should validate amount limits', async () => {
-            await expect(
-                contract.functions
-                    .spend(sigTemplate, -1)
-                    .to(testAddress, 1000n)
+                new TransactionBuilder({ provider })
+                    .addInput(utxos[0], contract.unlock.spend(maliciousSig))
+                    .addOutput({ to: testAddress, amount: 1000n })
                     .send()
             ).rejects.toThrow();
         });
     });
-    
+
     describe('Integration Tests', () => {
         it('should handle complex multi-output transactions', async () => {
-            const outputs = [
-                { address: address1, amount: 1000n },
-                { address: address2, amount: 2000n },
-                { address: address3, amount: 3000n }
-            ];
-            
-            const txDetails = await contract.functions
-                .multiOutput(sigTemplate)
-                .to(outputs[0].address, outputs[0].amount)
-                .to(outputs[1].address, outputs[1].amount)
-                .to(outputs[2].address, outputs[2].amount)
+            const utxos = await contract.getUtxos();
+
+            const txDetails = await new TransactionBuilder({ provider })
+                .addInput(utxos[0], contract.unlock.multiOutput(sigTemplate))
+                .addOutput({ to: address1, amount: 1000n })
+                .addOutput({ to: address2, amount: 2000n })
+                .addOutput({ to: address3, amount: 3000n })
                 .send();
-            
+
             expect(txDetails.txid).toBeDefined();
             expect(txDetails.outputs.length).toBe(3);
         });
     });
-    
+
     describe('Performance Tests', () => {
         it('should complete transactions within time limit', async () => {
+            const utxos = await contract.getUtxos();
             const startTime = Date.now();
-            
-            const txDetails = await contract.functions
-                .spend(sigTemplate)
-                .to(testAddress, 1000n)
+
+            const txDetails = await new TransactionBuilder({ provider })
+                .addInput(utxos[0], contract.unlock.spend(sigTemplate))
+                .addOutput({ to: testAddress, amount: 1000n })
                 .send();
-            
+
             const duration = Date.now() - startTime;
             expect(duration).toBeLessThan(10000); // 10 seconds
         });

@@ -2,56 +2,66 @@
 
 ## Overview
 
-The CashScript SDK provides powerful transaction building capabilities for interacting with smart contracts. This includes constructing transactions, managing inputs and outputs, handling fees, and broadcasting to the network.
+The CashScript SDK consists of 4 classes that form one cohesive structure to build BCH smart contract applications: the `Contract` class, the `TransactionBuilder` class, the `NetworkProvider` class, and the `SignatureTemplate` class.
 
-## Transaction Building Methods
-
-### 1. Function-Based Transaction Building
-
-The primary method for building transactions is through contract functions.
+The typical SDK flow is: compile an artifact with `cashc`, instantiate a `NetworkProvider`, provide it to instantiate a `Contract` from the artifact, then use `contract.unlock` to create unlockers for the `TransactionBuilder`. During transaction building, use `SignatureTemplate` to generate signatures.
 
 ```javascript
-const txDetails = await contract.functions
-    .functionName(arg1, arg2, ...)
-    .to(address, amount)
-    .send();
-```
+import { Contract, ElectrumNetworkProvider, TransactionBuilder, SignatureTemplate } from 'cashscript';
+import artifact from './contract.json' with { type: 'json' };
 
-### 2. Advanced Transaction Builder
+const provider = new ElectrumNetworkProvider('chipnet');
+const contract = new Contract(artifact, constructorArgs, { provider });
 
-For more complex transactions, use the `TransactionBuilder` class.
-
-```javascript
-import { TransactionBuilder } from 'cashscript';
+const sigTemplate = new SignatureTemplate(aliceWif);
+const unlocker = contract.unlock.transfer(sigTemplate);
 
 const txDetails = await new TransactionBuilder({ provider })
-    .addInput(utxo, unlockingScript)
+    .addInput(utxo, unlocker)
     .addOutput({ to: address, amount: amount })
     .send();
 ```
 
+> **Note**: The old `contract.functions` simple transaction builder was deprecated in v0.12.0 and removed in v0.13.0. Use `TransactionBuilder` with `contract.unlock` instead.
+
 ### Pay to Script (P2S) Support
 
 Bitcoin Cash supports Pay to Script (P2S) outputs, allowing direct script usage without hashing overhead. P2S becomes standard in the May 2026 upgrade and reduces transaction size by 23-35 bytes per output compared to P2SH. The unlocking bytecode limit unifies to 10,000 bytes in May 2026, enabling complex contract logic.
+
+## Instantiating a TransactionBuilder
+
+```typescript
+new TransactionBuilder(options: TransactionBuilderOptions)
+```
+
+To start, instantiate a transaction builder and pass in a `NetworkProvider` instance and other options.
+
+```typescript
+interface TransactionBuilderOptions {
+    provider: NetworkProvider;
+    maximumFeeSatoshis?: bigint;
+    maximumFeeSatsPerByte?: number;
+    allowImplicitFungibleTokenBurn?: boolean;
+}
+```
+
+The `maximumFeeSatoshis` and `maximumFeeSatsPerByte` options act as safety checks — an error is thrown when building the transaction if the fee exceeds the configured limit. The `allowImplicitFungibleTokenBurn` option (default: `false`) controls whether the builder throws when fungible tokens in the inputs are not accounted for in the outputs.
 
 ## Basic Transaction Building
 
 ### Simple Transfer
 
 ```javascript
-import { Contract, ElectrumNetworkProvider, SignatureTemplate } from 'cashscript';
-
 const provider = new ElectrumNetworkProvider('mainnet');
 const contract = new Contract(artifact, constructorArgs, { provider });
-
-// Create signature template
-const privateKey = 'your-private-key-here';
 const sigTemplate = new SignatureTemplate(privateKey);
 
-// Build and send transaction
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to('bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca', 100000n)
+const contractUtxos = await contract.getUtxos();
+const contractUtxo = contractUtxos[0];
+
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca', amount: 100000n })
     .send();
 
 console.log('Transaction ID:', txDetails.txid);
@@ -60,174 +70,63 @@ console.log('Transaction ID:', txDetails.txid);
 ### Multi-Output Transaction
 
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to('bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca', 50000n)
-    .to('bitcoincash:qrhea03074073ff3zv9whh0nggxc7k03ssh8jv9mkx', 30000n)
-    .send();
-```
-
-## Transaction Options
-
-### Fee Management
-
-#### Default Fee Rate
-
-```javascript
-// Uses default fee rate (1.0 sat/byte)
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .send();
-```
-
-#### Custom Fee Rate
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withFeePerByte(2.0)  // 2 sat/byte
-    .send();
-```
-
-#### Hardcoded Fee
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withHardcodedFee(1000n)  // 1000 satoshis
-    .send();
-```
-
-### Change Management
-
-#### Minimum Change
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withMinChange(5000n)  // Minimum 5000 sat change
-    .send();
-```
-
-#### No Change Output
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withoutChange()
-    .send();
-```
-
-### Input Selection
-
-#### Automatic Input Selection
-
-```javascript
-// SDK automatically selects UTXOs
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .send();
-```
-
-#### Manual Input Selection
-
-```javascript
-const utxos = await contract.getUtxos();
-const selectedUtxo = utxos[0];
-
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .from(selectedUtxo)
-    .to(address, amount)
-    .send();
-```
-
-## Advanced Transaction Building
-
-### Using TransactionBuilder
-
-```javascript
-import { TransactionBuilder, SignatureTemplate } from 'cashscript';
-
-const provider = new ElectrumNetworkProvider('mainnet');
-const sigTemplate = new SignatureTemplate(privateKey);
+const contractUtxos = await contract.getUtxos();
+const contractUtxo = contractUtxos[0];
 
 const txDetails = await new TransactionBuilder({ provider })
     .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
-    .addOutput({
-        to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca',
-        amount: 50000n
-    })
-    .addOutput({
-        to: 'bitcoincash:qrhea03074073ff3zv9whh0nggxc7k03ssh8jv9mkx',
-        amount: 30000n
-    })
-    .setMaxFee(2000n)
+    .addOutput({ to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca', amount: 50000n })
+    .addOutput({ to: 'bitcoincash:qrhea03074073ff3zv9whh0nggxc7k03ssh8jv9mkx', amount: 30000n })
     .send();
 ```
 
-### P2PKH Input Integration
+## P2PKH Input Integration
 
 ```javascript
 const aliceUtxos = await provider.getUtxos(aliceAddress);
+const aliceUtxo = aliceUtxos[0];
 const aliceTemplate = new SignatureTemplate(alicePrivateKey);
+const contractUtxos = await contract.getUtxos();
+const contractUtxo = contractUtxos[0];
 
 const txDetails = await new TransactionBuilder({ provider })
     .addInput(contractUtxo, contract.unlock.spend(contractSig))
-    .addInput(aliceUtxos[0], aliceTemplate.unlockP2PKH())
+    .addInput(aliceUtxo, aliceTemplate.unlockP2PKH())
     .addOutput({ to: bobAddress, amount: 100000n })
     .send();
 ```
 
 ## OP_RETURN Data
 
-### Simple OP_RETURN
-
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withOpReturn(['Hello, Bitcoin Cash!'])
+const contractUtxos = await contract.getUtxos();
+const contractUtxo = contractUtxos[0];
+
+// Simple OP_RETURN
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount })
+    .addOpReturnOutput(['Hello, Bitcoin Cash!'])
     .send();
-```
 
-### Protocol-Specific OP_RETURN
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withOpReturn(['0x6d02', 'memo.cash message'])
-    .send();
-```
-
-### Multiple OP_RETURN Outputs
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withOpReturn(['0x534c5000', 'SLP token data'])
-    .withOpReturn(['0x6d02', 'memo.cash message'])
+// Protocol-specific OP_RETURN (hex-prefixed strings treated as hex)
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount })
+    .addOpReturnOutput(['0x6d02', 'memo.cash message'])
     .send();
 ```
 
 ## CashTokens Integration
 
-Bitcoin Cash supports CashTokens for fungible and non-fungible token functionality. Token commitments are currently max 40 bytes (128 bytes in May 2026 upgrade), supporting advanced use cases like BLS12-381 KZG commitments for bilinear pairing-based accumulators.
+Bitcoin Cash supports CashTokens for fungible and non-fungible token functionality. Token commitments are currently max 40 bytes (128 bytes in May 2026 upgrade).
 
 ### Fungible Token Outputs
 
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to({
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({
         to: address,
         amount: 1000n,
         token: {
@@ -241,33 +140,18 @@ const txDetails = await contract.functions
 ### NFT Outputs
 
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to({
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({
         to: address,
         amount: 1000n,
         token: {
             category: tokenCategory,
+            amount: 0n,
             nft: {
                 capability: 'none',
-                commitment: Buffer.from('unique-data')
+                commitment: 'unique-data-hex'
             }
-        }
-    })
-    .send();
-```
-
-### Token Minting
-
-```javascript
-const txDetails = await contract.functions
-    .mint(sigTemplate, 1000n)
-    .to({
-        to: address,
-        amount: 1000n,
-        token: {
-            category: tokenCategory,
-            amount: 1000n
         }
     })
     .send();
@@ -278,20 +162,10 @@ const txDetails = await contract.functions
 ### Absolute Time Locks
 
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withTime(1640995200)  // Unix timestamp
-    .send();
-```
-
-### Relative Time Locks
-
-```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withAge(144)  // 144 blocks
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount })
+    .setLocktime(1640995200)  // Unix timestamp
     .send();
 ```
 
@@ -300,30 +174,35 @@ const txDetails = await contract.functions
 ### Debug Mode
 
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .debug()  // Shows detailed transaction info
-    .send();
+const txBuilder = new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount });
+
+// Debug locally (returns intermediate values and results)
+const debugResult = txBuilder.debug();
+
+// Get VM resource usage
+const vmUsage = txBuilder.getVmResourceUsage(true); // verbose output
 ```
 
 ### BitAuth URI
 
 ```javascript
-const uri = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .bitauthUri();
+const txBuilder = new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount });
 
+const uri = txBuilder.getBitauthUri();
 console.log('Debug URI:', uri);
 ```
 
 ### Build Without Broadcasting
 
 ```javascript
-const txHex = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
+// build() is synchronous and returns the hex string
+const txHex = new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount })
     .build();
 
 console.log('Transaction hex:', txHex);
@@ -331,41 +210,17 @@ console.log('Transaction hex:', txHex);
 
 ## Error Handling
 
-### Transaction Validation
+### Transaction Errors
 
 ```javascript
 try {
-    const txDetails = await contract.functions
-        .spend(sigTemplate)
-        .to(address, amount)
+    const txDetails = await new TransactionBuilder({ provider })
+        .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+        .addOutput({ to: address, amount: amount })
         .send();
 } catch (error) {
-    if (error.message.includes('insufficient funds')) {
-        console.error('Not enough funds in contract');
-    } else if (error.message.includes('script failed')) {
-        console.error('Contract validation failed');
-    } else {
-        console.error('Transaction error:', error.message);
-    }
-}
-```
-
-### Network Errors
-
-```javascript
-try {
-    const txDetails = await contract.functions
-        .spend(sigTemplate)
-        .to(address, amount)
-        .send();
-} catch (error) {
-    if (error.code === 'ECONNREFUSED') {
-        console.error('Network connection failed');
-    } else if (error.code === 'TIMEOUT') {
-        console.error('Transaction broadcast timeout');
-    } else {
-        console.error('Network error:', error.message);
-    }
+    // FailedTransactionError includes a BitAuth URI for debugging
+    console.error('Transaction error:', error.message);
 }
 ```
 
@@ -374,7 +229,7 @@ try {
 ### Escrow Contract Transaction
 
 ```javascript
-import { Contract, ElectrumNetworkProvider, SignatureTemplate } from 'cashscript';
+import { Contract, ElectrumNetworkProvider, TransactionBuilder, SignatureTemplate } from 'cashscript';
 
 const provider = new ElectrumNetworkProvider('mainnet');
 const escrowContract = new Contract(escrowArtifact, [
@@ -384,36 +239,16 @@ const escrowContract = new Contract(escrowArtifact, [
     escrowAmount
 ], { provider });
 
-// Buyer and seller complete the escrow
 const buyerSig = new SignatureTemplate(buyerPrivateKey);
 const sellerSig = new SignatureTemplate(sellerPrivateKey);
 
-const txDetails = await escrowContract.functions
-    .complete(buyerSig, sellerSig)
-    .to(sellerAddress, escrowAmount)
+const escrowUtxos = await escrowContract.getUtxos();
+const escrowUtxo = escrowUtxos[0];
+
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(escrowUtxo, escrowContract.unlock.complete(buyerSig, sellerSig))
+    .addOutput({ to: sellerAddress, amount: escrowAmount })
     .send();
-```
-
-### Multi-Path Contract
-
-```javascript
-const timeLockContract = new Contract(timeLockArtifact, [
-    ownerPubkey,
-    lockTime
-], { provider });
-
-const ownerSig = new SignatureTemplate(ownerPrivateKey);
-
-// Try immediate spend first
-try {
-    const txDetails = await timeLockContract.functions
-        .spend(ownerSig)
-        .to(ownerAddress, amount)
-        .send();
-} catch (error) {
-    // If time lock not expired, wait
-    console.log('Time lock not expired, waiting...');
-}
 ```
 
 ### Complex Multi-Input Transaction
@@ -421,33 +256,43 @@ try {
 ```javascript
 const provider = new ElectrumNetworkProvider('mainnet');
 
-// Multiple contract UTXOs
 const contractUtxos = await contract.getUtxos();
 const userUtxos = await provider.getUtxos(userAddress);
+const userUtxo = userUtxos[0];
 
 const userSig = new SignatureTemplate(userPrivateKey);
 const contractSig = new SignatureTemplate(contractPrivateKey);
 
-const txDetails = await new TransactionBuilder({ provider })
+const txDetails = await new TransactionBuilder({ provider, maximumFeeSatsPerByte: 2.0 })
     .addInput(contractUtxos[0], contract.unlock.spend(contractSig))
     .addInput(contractUtxos[1], contract.unlock.spend(contractSig))
-    .addInput(userUtxos[0], userSig.unlockP2PKH())
+    .addInput(userUtxo, userSig.unlockP2PKH())
     .addOutput({ to: recipientAddress, amount: 100000n })
     .addOutput({ to: changeAddress, amount: 50000n })
-    .setMaxFee(3000n)
+    .send();
+```
+
+### Multiple Inputs with Shared Unlocker
+
+```javascript
+const contractUtxos = await contract.getUtxos();
+const unlocker = contract.unlock.spend(sigTemplate);
+
+const txDetails = await new TransactionBuilder({ provider })
+    .addInputs(contractUtxos, unlocker)  // Share unlocker across all inputs
+    .addOutput({ to: recipientAddress, amount: 100000n })
     .send();
 ```
 
 ## Best Practices
 
-### 1. Fee Management
+### 1. Fee Safety
 
 ```javascript
-// Always set appropriate fees
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withFeePerByte(1.1)  // Slightly above minimum
+// Set a maximum fee rate to prevent accidental overpayment
+const txDetails = await new TransactionBuilder({ provider, maximumFeeSatsPerByte: 2.0 })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount })
     .send();
 ```
 
@@ -466,13 +311,13 @@ if (balance < requiredAmount) {
 ### 3. Error Recovery
 
 ```javascript
-async function sendTransactionWithRetry(contractTx, maxRetries = 3) {
+async function sendTransactionWithRetry(txBuilder, maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
         try {
-            return await contractTx.send();
+            return await txBuilder.send();
         } catch (error) {
             if (i === maxRetries - 1) throw error;
-            
+
             console.log(`Attempt ${i + 1} failed, retrying...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -485,81 +330,35 @@ async function sendTransactionWithRetry(contractTx, maxRetries = 3) {
 ```javascript
 async function monitorTransaction(txid) {
     const provider = new ElectrumNetworkProvider('mainnet');
-    
+
     while (true) {
         try {
-            const tx = await provider.getTransaction(txid);
-            if (tx.confirmations >= 1) {
-                console.log('Transaction confirmed');
+            const rawTx = await provider.getRawTransaction(txid);
+            if (rawTx) {
+                console.log('Transaction found on network');
                 break;
             }
         } catch (error) {
             console.log('Transaction not found, waiting...');
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, 30000));
     }
 }
 ```
 
-## Common Patterns
+## TransactionDetails
 
-### Batch Transactions
+The `send()` method returns a `TransactionDetails` object:
 
-```javascript
-const transactions = [];
-
-for (const recipient of recipients) {
-    const tx = contract.functions
-        .spend(sigTemplate)
-        .to(recipient.address, recipient.amount)
-        .build();
-    
-    transactions.push(tx);
-}
-
-// Send all transactions
-const results = await Promise.allSettled(
-    transactions.map(tx => provider.sendRawTransaction(tx))
-);
-```
-
-### Conditional Spending
-
-```javascript
-const balance = await contract.getBalance();
-const utxos = await contract.getUtxos();
-
-let txBuilder = contract.functions.spend(sigTemplate);
-
-if (balance > 100000n) {
-    txBuilder = txBuilder.to(primaryAddress, 50000n);
-    txBuilder = txBuilder.to(secondaryAddress, 30000n);
-} else {
-    txBuilder = txBuilder.to(primaryAddress, balance - 1000n);
-}
-
-const txDetails = await txBuilder.send();
-```
-
-### Token-Aware Transactions
-
-```javascript
-const contractUtxos = await contract.getUtxos();
-const tokenUtxo = contractUtxos.find(utxo => utxo.token);
-
-if (tokenUtxo) {
-    const txDetails = await contract.functions
-        .spend(sigTemplate)
-        .to({
-            to: recipientAddress,
-            amount: 1000n,
-            token: {
-                category: tokenUtxo.token.category,
-                amount: tokenUtxo.token.amount
-            }
-        })
-        .send();
+```typescript
+interface TransactionDetails {
+    inputs: Uint8Array[];
+    locktime: number;
+    outputs: Uint8Array[];
+    version: number;
+    txid: string;
+    hex: string;
 }
 ```
 
@@ -567,33 +366,39 @@ if (tokenUtxo) {
 
 ### Fee Calculation
 
+The transaction fee is the difference between total input satoshis and total output satoshis. You can calculate it from the `TransactionBuilder` before or after building:
+
 ```javascript
-const txHex = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .build();
+import { encodeTransaction } from '@bitauth/libauth';
 
-const txSize = txHex.length / 2;  // Hex to bytes
-const feeRate = 1.0;  // sat/byte
-const estimatedFee = txSize * feeRate;
+const txBuilder = new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount });
 
-console.log(`Transaction size: ${txSize} bytes`);
-console.log(`Estimated fee: ${estimatedFee} satoshis`);
+// Calculate fee from inputs and outputs
+const totalInputAmount = txBuilder.inputs.reduce((sum, input) => sum + input.satoshis, 0n);
+const totalOutputAmount = txBuilder.outputs.reduce((sum, output) => sum + output.amount, 0n);
+const feeSats = totalInputAmount - totalOutputAmount;
+
+// Calculate fee rate from the built transaction
+const libauthTx = txBuilder.buildLibauthTransaction();
+const txSizeBytes = encodeTransaction(libauthTx).byteLength;
+const feeRate = Number(feeSats) / txSizeBytes;
+
+console.log(`Fee: ${feeSats} sats (${feeRate.toFixed(2)} sats/byte, ${txSizeBytes} bytes)`);
 ```
 
 ### Input/Output Analysis
 
 ```javascript
-const txDetails = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount })
     .send();
 
 console.log('Transaction Analysis:');
 console.log('- TXID:', txDetails.txid);
 console.log('- Inputs:', txDetails.inputs.length);
 console.log('- Outputs:', txDetails.outputs.length);
-console.log('- Fee:', txDetails.fee);
+console.log('- Hex:', txDetails.hex);
 ```
-
-This comprehensive guide covers all aspects of transaction building with the CashScript SDK, from basic transfers to complex multi-input transactions with CashTokens support.
