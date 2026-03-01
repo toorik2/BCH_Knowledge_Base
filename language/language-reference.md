@@ -986,10 +986,9 @@ bytes sBytes = bytes(s);         // UTF-8 encoding
 
 ### Collections
 ```cashscript
-// Arrays (limited, mainly for checkMultiSig)
-sig[] sigs = [sig1, sig2];
-pubkey[] pks = [pk1, pk2, pk3];
-require(checkMultiSig(sigs, pks));
+// Arrays — inline literals only, no array type declarations
+// Only usable as direct arguments to checkMultiSig and LockingBytecodeNullData
+require(checkMultiSig([s1, s2], [pk1, pk2, pk3]));
 
 // Tuples (from split operations)
 bytes part1, bytes part2 = data.split(5);
@@ -1230,7 +1229,7 @@ contract MasterReference() {
 - No implicit numeric conversions (`int` ↔ `string`)
 - Specialized types (`sig`, `pubkey`, `datasig`) auto-convert to `bytes`
 - Fixed-length types: `bytesN` where N ∈ [1, 64]
-- Collections: arrays limited (mainly `sig[]`, `pubkey[]` for checkMultiSig)
+- Collections: no array type declarations; inline array literals `[a, b, c]` only as arguments to `checkMultiSig` and `LockingBytecodeNullData`
 - Tuples: only from `split()` operations
 - **`.slice()` returns bounded bytes**: `.slice(start, end)` with literal int bounds returns `bytesN` where N = end - start. No cast needed.
 - **`.split()` typing depends on position**: `.split(literal)[0]` returns bounded `bytesN`. `.split(literal)[1]` on unbounded `bytes` returns unbounded `bytes` — use `unsafe_bytesN()` to cast when bounded type is needed.

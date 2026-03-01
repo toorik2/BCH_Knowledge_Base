@@ -216,23 +216,15 @@ contract OverflowProtection() {
 ### 3. Access Control
 
 ```cashscript
-contract AccessControl(pubkey admin, pubkey[] operators) {
+contract AccessControl(pubkey admin, pubkey operator1, pubkey operator2) {
     function adminAction(sig adminSig) {
         require(checkSig(adminSig, admin));
         // Admin-only actions
     }
     
     function operatorAction(sig operatorSig, pubkey operatorPk) {
-        // Validate operator is in authorized list
-        bool isAuthorized = false;
-        for (int i = 0; i < operators.length; i++) {
-            if (operators[i] == operatorPk) {
-                isAuthorized = true;
-                break;
-            }
-        }
-        
-        require(isAuthorized);
+        // Validate operator is one of the authorized keys
+        require(operatorPk == operator1 || operatorPk == operator2);
         require(checkSig(operatorSig, operatorPk));
     }
 }

@@ -260,7 +260,7 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - All variables explicitly typed (no `var`)
 - No implicit conversions
 - Fixed-length: `bytesN` where N ∈ [1, 64]
-- Collections: Arrays limited (mainly `sig[]`, `pubkey[]` for `checkMultiSig`)
+- Collections: no array type declarations; inline array literals `[a, b, c]` only as arguments to `checkMultiSig` and `LockingBytecodeNullData`
 - Tuples: Only from `split()` operations, requires destructuring
 - Use `slice(start, end)` to extract bytes from middle positions without tuples
 
