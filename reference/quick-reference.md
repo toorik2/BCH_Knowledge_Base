@@ -33,7 +33,7 @@ contract ContractName(Type param1, Type param2) {
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `<`, `<=`, `>`, `>=`, `==`, `!=` |
 | Logical | `!`, `&&`, `||` |
-| Bitwise | `&`, `|`, `^` |
+| Bitwise | `&`, `|`, `^`, `~`, `<<`, `>>` |
 
 ### Built-in Functions
 
@@ -66,7 +66,7 @@ checkDataSig(datasig s, bytes msg, pubkey pk) -> bool
 #### Time Variables
 ```cashscript
 tx.time        // Absolute time lock
-tx.age         // Relative time lock (UTXO age)
+this.age       // Relative time lock (UTXO age)
 ```
 
 #### Transaction Introspection
@@ -105,7 +105,7 @@ new LockingBytecodeNullData(bytes[] chunks)
 ```cashscript
 // BCH Units
 1 * sats         // 1 satoshi
-1 * finney       // 0.001 BCH
+1 * finney       // 10 satoshis
 1 * bits         // 0.000001 BCH
 1 * bitcoin      // 1 BCH
 
@@ -374,7 +374,7 @@ new ElectrumNetworkProvider('mainnet', 'server.example.com')
 
 ### Pragma Directive
 ```cashscript
-pragma cashscript ^0.13.0;  // Compatible with 0.11.x
+pragma cashscript ^0.13.0;  // Compatible with 0.13.x
 pragma cashscript >=0.13.0; // 0.13.0 and above (recommended for new projects)
 ```
 

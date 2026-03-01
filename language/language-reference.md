@@ -4,10 +4,10 @@
 
 | Type | Operations | Methods | Conversions | Size | Constraints |
 |------|-----------|---------|-------------|------|-------------|
-| `bool` | `! && || == !=` | - | - | 1 bit | - |
-| `int` | `+ - * / % < <= > >= == !=` | - | `bytes(int)` `toPaddedBytes(int, N)` | Variable | Integer-only, div/0 fails, underscores OK: `1_000_000`, scientific: `1e6` |
+| `bool` | `! && || == !=` | - | `int(bool)` | 1 bit | - |
+| `int` | `+ - * / % << >> < <= > >= == !=` | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` | Variable | Integer-only, div/0 fails, underscores OK: `1_000_000`, scientific: `1e6` |
 | `string` | `+ == !=` | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | `bytes(string)` | Variable | UTF-8 encoded |
-| `bytes` | `+ == != & | ^` | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | Variable | Hex: `0x1234abcd` |
+| `bytes` | `+ == != & | ^ << >> ~` | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | Variable | Hex: `0x1234abcd` |
 | `bytesN` | Same as bytes | Same as bytes | `unsafe_bytesN(bytes)` | N bytes (1-64) | Fixed length, N=1-64, `byte` alias for `bytes1` |
 | `pubkey` | `== !=` | - | Auto to bytes | 33 bytes | Bitcoin public key |
 | `sig` | `== !=` | - | Auto to bytes | ~65 bytes | Transaction signature |
@@ -36,32 +36,43 @@ require(campaignID != 0xFFFFFFFFFF);       // Sentinel value check (bytes5)
 
 **Why MSB matters**: In Script Number encoding, the MSB indicates sign. If you use the full byte range, you risk creating values that get interpreted as negative. Always subtract 1 bit from max capacity.
 
-### CRITICAL: int Type Casting Limit
+### int Type Casting Note
 
-Only `bytes1` through `bytes8` can be cast to `int`. Larger bounded bytes types cause a compile error:
+Prior to v0.13, only `bytes1` through `bytes8` could be cast to `int` — larger bounded bytes types caused a compile error. This limitation is removed in v0.13.
 
-| Type | Cast to int | Error |
-|------|-------------|-------|
-| `bytes1-bytes8` | ✅ `int(value)` | - |
-| `bytes9-bytes64` | ❌ | "Type 'bytesN' is not castable to type 'int'" |
+### CRITICAL: `unsafe_` Casts Are Unverified Type Claims
 
+The `unsafe_` prefix means the compiler performs **no runtime checks or conversions** — it is a pure type assertion that trusts the developer. If the actual data doesn't match the claimed type, the contract may fail or behave incorrectly at runtime.
+
+**Three kinds of unsafe casts:**
+- **`unsafe_bytesN(bytes)`** — Claims unbounded `bytes` is exactly N bytes long. No length check is added. If the actual length differs, downstream operations (e.g., `LockingBytecodeP2PKH` expecting exactly 20 bytes) will fail at runtime.
+- **`unsafe_int(bytes)`** — Reinterprets bytes as int without `OP_BIN2NUM` conversion. If the bytes are not minimally encoded, arithmetic may produce unexpected results.
+- **`unsafe_bool(int)`** — Reinterprets int as bool without `OP_0NOTEQUAL` conversion. Non-zero values other than 1 remain as-is instead of being normalized to `true`.
+
+**ALWAYS comment WHY an unsafe cast is safe:**
 ```cashscript
-// OK - bytes8 or smaller (.slice with literal bounds returns bounded bytes)
-bytes8 amount = commitment.slice(0, 8);
-require(int(amount) > 0);
-
-// COMPILE ERROR - bytes16 cannot cast to int
-bytes16 liquidity = commitment.slice(0, 16);
-require(int(liquidity) > 0);  // ❌ Error!
+// SAFE: commitment is always 40 bytes (enforced by output constraints in the write function)
+bytes40 commitment = unsafe_bytes40(tx.inputs[0].nftCommitment);
 ```
 
-**Auto-increment pattern with overflow check:**
+**Recommended pattern: cast the commitment ONCE at read time.** When you cast the full commitment to a bounded type (e.g., `bytes40`), the compiler can calculate exact sizes for ALL subsequent `split()` operations on both `[0]` and `[1]`. This eliminates the need for any further unsafe casts:
 ```cashscript
-bytes4 currentID = unsafe_bytes4(tx.inputs[0].nftCommitment.split(4)[0]);
-int newID = int(currentID) + 1;
-require(newID != 2147483647);  // Check BEFORE using new value
-require(tx.outputs[0].nftCommitment == toPaddedBytes(newID, 4) + restOfCommitment);
+// One unsafe cast with safety comment — all downstream splits are fully typed
+bytes40 commitment = unsafe_bytes40(tx.inputs[0].nftCommitment);
+bytes20 ownerPkh = commitment.split(20)[0];     // bytes20 (compiler knows: 20)
+bytes2 lockBlocks = commitment.split(38)[1];     // bytes2  (compiler knows: 40-38=2)
 ```
+
+**When `unsafe_` is NOT needed:**
+- After casting commitment to bounded `bytesN` — all splits on it return bounded types
+- `split(literal)[0]` on any bytes already returns bounded `bytesN`
+- `slice(literal, literal)` already returns bounded `bytesN`
+- `.reverse()` on `bytesN` preserves the bounded type
+
+**When `unsafe_` IS needed:**
+- Casting an unbounded `bytes` value to a bounded type (e.g., `nftCommitment` to `bytes40`)
+- `split(literal)[1]` on unbounded `bytes` returns unbounded `bytes`
+- `split(variable)` returns unbounded `bytes` for both sides
 
 ## FUNCTION REFERENCE
 
@@ -82,7 +93,7 @@ require(tx.outputs[0].nftCommitment == toPaddedBytes(newID, 4) + restOfCommitmen
 | `bytes` | `(any)` | `bytes` | Type conversion |
 | `toPaddedBytes` | `(int value, int length)` | `bytes` | Pads int to fixed-length bytes (NUM2BIN). v0.13+ |
 | `unsafe_bytesN` | `(bytes)` | `bytesN` | Semantic cast to bytesN. No length validation. v0.13+ |
-| `unsafe_bool` | `(any)` | `bool` | Semantic boolean cast without conversion. v0.13+ |
+| `unsafe_bool` | `(int)` | `bool` | Semantic boolean cast without conversion. v0.13+ |
 
 ## GLOBAL VARIABLES
 
@@ -280,8 +291,10 @@ int lockBlocks = 1000;             // Will become 2 bytes
 require(tx.outputs[0].nftCommitment == userPkh + toPaddedBytes(0, 18) + toPaddedBytes(lockBlocks, 2));
 
 // READ: Unpack from commitment
-bytes20 storedPkh = unsafe_bytes20(tx.inputs[0].nftCommitment.split(20)[0]);
-bytes stakeBlocks = unsafe_bytes2(tx.inputs[0].nftCommitment.split(38)[1]);  // Skip 38, take last 2
+// SAFE: commitment is always 40 bytes (enforced by the WRITE constraint above)
+bytes40 commitment = unsafe_bytes40(tx.inputs[0].nftCommitment);
+bytes20 storedPkh = commitment.split(20)[0];       // bytes20 (compiler knows: 20)
+bytes2 stakeBlocks = commitment.split(38)[1];       // bytes2  (compiler knows: 40-38=2)
 int blocks = int(stakeBlocks);
 ```
 
@@ -368,26 +381,28 @@ int reserve = int(commitment.split(72)[0].split(8)[1]);
 bytes8 reserveBytes = commitment.slice(64, 72);  // bytes 64-71
 int reserve = int(reserveBytes);
 
-// CORRECT: Use split() for head extraction
-bytes20 ownerPkh = unsafe_bytes20(commitment.split(20)[0]);  // first 20 bytes
+// RECOMMENDED: Cast commitment to bounded type ONCE, then all splits are safe
+// SAFE: commitment is always 40 bytes (enforced at write time)
+bytes40 c = unsafe_bytes40(tx.inputs[0].nftCommitment);
+bytes20 ownerPkh = c.split(20)[0];    // bytes20 (compiler knows: 20)
+bytes4 suffix = c.split(36)[1];        // bytes4  (compiler knows: 40-36=4)
 
-// CORRECT: Use split() for tail extraction (40-byte commitment)
-bytes4 suffix = unsafe_bytes4(commitment.split(36)[1]);  // last 4 bytes
-
-// CORRECT: Sequential destructuring with split()
-bytes20 owner, bytes rest = commitment.split(20);
-bytes8 balance, bytes rest2 = rest.split(8);
-bytes4 timestamp = unsafe_bytes4(rest2.split(4)[0]);
+// Also works: sequential destructuring on bounded bytes
+bytes20 owner, bytes20 rest = c.split(20);  // both sides bounded (20, 40-20=20)
+bytes8 balance, bytes12 rest2 = rest.split(8);
+bytes4 timestamp = rest2.split(4)[0];
 ```
 
 **Common extraction patterns by position:**
-```
-Commitment: [field0(20) | field1(8) | field2(32) | field3(4)] = 64 bytes
+```cashscript
+// Developer asserts commitment is 64 bytes (contract must enforce this at write time)
+bytes64 commitment = unsafe_bytes64(tx.inputs[0].nftCommitment);
 
-Field 0 (offset 0, size 20):   unsafe_bytes20(commitment.split(20)[0])  // split needs cast
-Field 1 (offset 20, size 8):   commitment.slice(20, 28)                 // slice returns bytes8
-Field 2 (offset 28, size 32):  commitment.slice(28, 60)                 // slice returns bytes32
-Field 3 (offset 60, size 4):   unsafe_bytes4(commitment.split(60)[1])  // split needs cast
+// Now ALL splits return bounded types — compiler calculates both sides
+Field 0 (offset 0, size 20):   commitment.split(20)[0]    // bytes20 (compiler knows: 20)
+Field 1 (offset 20, size 8):   commitment.slice(20, 28)    // bytes8
+Field 2 (offset 28, size 32):  commitment.slice(28, 60)    // bytes32
+Field 3 (offset 60, size 4):   commitment.split(60)[1]     // bytes4  (compiler knows: 64-60=4)
 ```
 
 ## DUST AND FEE ACCOUNTING
@@ -403,7 +418,7 @@ require(amount >= 5000);               // Ensure enough for future fees
 require(tx.outputs[0].value == tx.inputs[0].value - 3000);  // 3000 = miner fee + 2x dust UTXOs
 
 // PATTERN: Fee collection into contract
-bytes2 stakeFee = unsafe_bytes2(tx.inputs[0].nftCommitment.split(2)[0]);
+bytes2 stakeFee = tx.inputs[0].nftCommitment.split(2)[0];  // split(literal)[0] returns bytes2
 require(tx.outputs[0].value == tx.inputs[0].value + int(stakeFee));
 
 // PATTERN: Withdraw accumulated fees
@@ -1061,7 +1076,7 @@ contract MasterReference() {
         require(tx.outputs[1].nftCommitment == userPkh + toPaddedBytes(0, 18) + lockLength);
 
         // PATTERN: Read fee from master NFT commitment (first 2 bytes)
-        bytes2 stakeFee = unsafe_bytes2(tx.inputs[0].nftCommitment.split(2)[0]);
+        bytes2 stakeFee = tx.inputs[0].nftCommitment.split(2)[0];
 
         // PATTERN: Contract self-preservation with fee collection
         require(tx.outputs[0].value == tx.inputs[0].value + int(stakeFee));
@@ -1099,10 +1114,11 @@ contract MasterReference() {
 
         // PATTERN: Unpack structured commitment
         // Layout: userPkh(20) + reserved(18) + lockBlocks(2)
-        bytes stakeBlocks = unsafe_bytes2(tx.inputs[0].nftCommitment.split(38)[1]);
-        require(tx.age >= int(stakeBlocks));  // Time lock validation
+        // SAFE: commitment is always 40 bytes (enforced at write time), so split(38)[1] is 2 bytes
+        bytes2 stakeBlocks = unsafe_bytes2(tx.inputs[0].nftCommitment.split(38)[1]);
+        require(this.age >= int(stakeBlocks));  // Time lock validation
 
-        bytes20 payoutAddress = unsafe_bytes20(tx.inputs[0].nftCommitment.split(20)[0]);
+        bytes20 payoutAddress = tx.inputs[0].nftCommitment.split(20)[0];
         bytes payoutBytecode = new LockingBytecodeP2PKH(payoutAddress);
 
         // PATTERN: Distribute tokens to user
@@ -1135,6 +1151,7 @@ contract MasterReference() {
         require(tx.inputs[1].tokenCategory == 0x);
 
         // PATTERN: Admin authorization via commitment-stored pubkeyhash
+        // SAFE: commitment layout guarantees 20 bytes after offset 20 (enforced at write time)
         bytes20 adminAddress = unsafe_bytes20(tx.inputs[0].nftCommitment.split(20)[1]);
         bytes payoutBytecode = new LockingBytecodeP2PKH(adminAddress);
         require(tx.inputs[1].lockingBytecode == payoutBytecode);  // Admin must provide input1
@@ -1216,7 +1233,7 @@ contract MasterReference() {
 - Collections: arrays limited (mainly `sig[]`, `pubkey[]` for checkMultiSig)
 - Tuples: only from `split()` operations
 - **`.slice()` returns bounded bytes**: `.slice(start, end)` with literal int bounds returns `bytesN` where N = end - start. No cast needed.
-- **`.split()` returns unbounded bytes**: `.split(i)` returns tuple of unbounded `bytes`. Use `unsafe_bytesN()` to cast when bounded type is needed.
+- **`.split()` typing depends on position**: `.split(literal)[0]` returns bounded `bytesN`. `.split(literal)[1]` on unbounded `bytes` returns unbounded `bytes` — use `unsafe_bytesN()` to cast when bounded type is needed.
 
 ### Operational Limits
 
@@ -1441,7 +1458,7 @@ contract [ContractName]([constructorParams]) {
 
         // Business logic with inline comments explaining WHY
         bytes nftCommitment = tx.inputs[0].nftCommitment;
-        bytes4 counter = unsafe_bytes4(nftCommitment.split(4)[0]);
+        bytes4 counter = nftCommitment.split(4)[0];
         int newCounter = int(counter) + 1;
         require(newCounter < 2147483647);            // Prevent overflow
 
@@ -1752,7 +1769,7 @@ require(voted == 0x00);                                      // Hasn't voted yet
 
 **State Transitions**:
 ```cashscript
-bytes4 currentCount = unsafe_bytes4(commitment.split(4)[0]);       // Extract counter
+bytes4 currentCount = commitment.split(4)[0];                      // Extract counter
 int newCount = int(currentCount) + 1;                              // Increment
 require(newCount <= 2147483647);                                    // Max bytes4 (MSB safety)
 ```

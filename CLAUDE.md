@@ -161,14 +161,25 @@ Use `int(bytes)` for parsing, `toPaddedBytes(int, N)` for encoding, and `unsafe_
 
 ## When to Use unsafe_bytesX()
 
+**Recommended pattern**: Cast the full `nftCommitment` to a bounded type ONCE at read time. Then all subsequent splits return bounded types for both `[0]` and `[1]`:
+```cashscript
+// SAFE: commitment is always 40 bytes (enforced by write constraints)
+bytes40 commitment = unsafe_bytes40(tx.inputs[0].nftCommitment);
+bytes20 ownerPkh = commitment.split(20)[0];  // bytes20 — no cast needed
+bytes2 lockBlocks = commitment.split(38)[1]; // bytes2  — no cast needed (40-38=2)
+```
+
 | Method | Returns | Cast Needed? |
 |--------|---------|--------------|
 | `.slice(start, end)` with **literal ints** | bounded `bytesN` | No |
-| `.split(i)` | unbounded `bytes` tuple | Yes, use `unsafe_bytesX()` |
+| `.split(literal)` on **bounded** `bytesN` | bounded on **both** sides | No |
+| `.split(literal)[0]` on unbounded `bytes` | bounded `bytesN` | No |
+| `.split(literal)[1]` on unbounded `bytes` | unbounded `bytes` | Yes, use `unsafe_bytesX()` |
+| `.split(variable)` | unbounded `bytes` tuple | Yes, use `unsafe_bytesX()` |
 | `.reverse()` on `bytesN` | same `bytesN` | No |
 | `bytes()` conversion | unbounded `bytes` | Yes if need bounded |
 
-**Why**: Literal integers carry size information at compile time, so `.slice(0, 8)` returns `bytes8` directly.
+**Why**: When splitting bounded `bytesX` with a literal, the compiler calculates both sides: `bytesX.split(N)` → `(bytesN, bytes(X-N))`.
 
 ## Key External Resources
 
