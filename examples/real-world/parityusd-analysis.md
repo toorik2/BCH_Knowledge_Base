@@ -87,30 +87,27 @@ Loan.cash (coordinator)
 
 **Main Contract Pattern (Loan.cash)**:
 ```cashscript
-contract Loan(bytes32 parityTokenId) {
-    function interact(
-        int functionInputIndex,
-        int sidecarOutputIndex,
-        int functionOutputIndex
-    ) {
-        // Extract function identifier from NFT commitment
-        bytes functionNftIdentifier =
-            tx.inputs[functionInputIndex].nftCommitment.split(1)[0];
+contract Loan() {
+    function interact() {
+        // Authenticate loanTokenSidecar
+        int sidecarInputIndex = this.activeInputIndex + 1;
+        require(tx.inputs[sidecarInputIndex].outpointTransactionHash ==
+                tx.inputs[this.activeInputIndex].outpointTransactionHash);
+        require(tx.inputs[sidecarInputIndex].outpointIndex ==
+                tx.inputs[this.activeInputIndex].outpointIndex + 1);
 
-        // Authenticate each function by its unique identifier
-        if (functionNftIdentifier == 0x00) {
-            // liquidate logic - validate outputs
-        } else if (functionNftIdentifier == 0x01) {
-            // manage logic
-        } else if (functionNftIdentifier == 0x02) {
-            // redeem logic
-        }
-        // ... etc
+        // Authenticate loan contract function
+        // Function contracts are identified by parityTokenId + a commitment of a single byte
+        bytes32 parityTokenId = tx.inputs[this.activeInputIndex].tokenCategory.split(32)[0];
+        int nftFunctionInputIndex = this.activeInputIndex + 2;
+        require(tx.inputs[nftFunctionInputIndex].tokenCategory == parityTokenId);
+        bytes commitmentNftFunction = tx.inputs[nftFunctionInputIndex].nftCommitment;
+        require(commitmentNftFunction.length == 1);
     }
 }
 ```
 
-**Why This Works**: Each function contract holds an NFT with a unique first-byte identifier. The main contract routes to appropriate validation logic based on this byte.
+**Why This Works**: The main contract validates the trio (main + sidecar + function NFT). Each function contract handles its own operation-specific validation.
 
 ---
 
@@ -120,26 +117,26 @@ contract Loan(bytes32 parityTokenId) {
 
 ```cashscript
 // From redeem.cash - note the EXPLICIT index requirements
-function redeem(int loanBchAfterTxFee) {
-    // THIS FUNCTION MUST BE AT INDEX 3
-    require(this.activeInputIndex == 3);
+// Inputs: 0-loan, 1-loanTokenSidecar, 2-redeem, 3-redemption, 4-redemptionStateSidecar, 5-redemptionTokenSidecar, ?6-feeBch
+// Outputs: 0-loan, 1-loanTokenSidecar, 2-redeem, 3-opreturn, 4-payoutRedemption, 5?-tokenChangeOutput, ?6-BchChange
 
-    // Each input has a KNOWN position
-    // Index 0: PriceContract
-    // Index 1: Loan
-    // Index 2: LoanTokenSidecar
-    // Index 3: redeem (this)
-    // Index 4: LoanKey
-    // Index 5: feeBch
+function redeemOrCancel() {
+    // Require function to be at inputIndex 2
+    require(this.activeInputIndex == 2);
+    bytes parityTokenId = tx.inputs[this.activeInputIndex].tokenCategory;
 
-    // Authenticate price contract at index 0
+    // Authenticate loan at inputIndex 0, nftCommitment checked later
     require(tx.inputs[0].tokenCategory == parityTokenId + 0x01);
-    require(tx.inputs[0].nftCommitment.split(1)[0] == 0x00);
 
-    // Authenticate loan at index 1
-    require(tx.inputs[1].tokenCategory == parityTokenId + 0x01);
-    bytes loanIdentifier = tx.inputs[1].nftCommitment.split(1)[0];
-    require(loanIdentifier == 0x01);
+    // Authenticate redemption at inputIndex 3
+    require(tx.inputs[3].tokenCategory == redemptionTokenId + 0x01);
+
+    // Read state from redemption
+    bytes32 targetLoan, bytes redemptionAmountBytes = tx.inputs[3].nftCommitment.split(32);
+    int pendingRedemptionAmount = int(redemptionAmountBytes);
+
+    // Require target loan to match tokenid
+    require(tx.inputs[1].tokenCategory == targetLoan);
 }
 ```
 
@@ -162,30 +159,25 @@ Loan NFT Commitment (27 bytes):
 └─────────┴────────────────┴───────────────────┴────────┘
 ```
 
-**State Parsing Pattern**:
+**State Parsing Pattern** (from redeem.cash):
 ```cashscript
-// Parse state from commitment
-bytes rawCommitment = tx.inputs[1].nftCommitment;
-bytes identifier, bytes remaining = rawCommitment.split(1);
+// Parse loan state, used to construct new loan commitment
+bytes loanState = tx.inputs[0].nftCommitment;
+bytes7 firstPartLoanState, bytes remainingPartLoanState = loanState.split(7);
+byte identifier, bytes6 borrowedAmountBytes = firstPartLoanState.split(1);
 require(identifier == 0x01);
-
-bytes borrowedAmountBytes, remaining = remaining.split(6);
-int borrowedAmount = int(borrowedAmountBytes);
-
-bytes beingRedeemedBytes, remaining = remaining.split(6);
-int beingRedeemed = int(beingRedeemedBytes);
+bytes6 amountBeingRedeemed, bytes lastPartLoanState = remainingPartLoanState.split(6);
 ```
 
-**State Reconstruction Pattern**:
+**State Reconstruction Pattern** (from redeem.cash):
 ```cashscript
-// Reconstruct state with updates
-bytes newCommitment = 0x01
-    + toPaddedBytes(newBorrowedAmount, 6)
-    + toPaddedBytes(newBeingRedeemed, 6)
-    + remainingState;
+// Construct loan state after redemption (update debt and amountBeingRedeemed)
+int newAmountBeingRedeemed = int(amountBeingRedeemed) - pendingRedemptionAmount;
+int newBorrowAmount = int(borrowedAmountBytes) - effectiveRedemptionAmount;
+bytes27 newLoanCommitment = 0x01 + bytes6(newBorrowAmount) + bytes6(newAmountBeingRedeemed) + bytes14(lastPartLoanState);
 
-// Enforce output has new state
-require(tx.outputs[1].nftCommitment == newCommitment);
+// Recreate loan contract with new state
+require(tx.outputs[0].nftCommitment == newLoanCommitment);
 ```
 
 ---
@@ -359,7 +351,7 @@ bytes commitment = 0x01 + toPaddedBytes(balance, 6) + pubkeyhash;
 require(tx.outputs[0].nftCommitment == commitment);
 ```
 
-### Lesson 2: NO LOOPS - FIXED INPUT/OUTPUT COUNTS
+### Lesson 2: NO LOOPS (YET) - FIXED INPUT/OUTPUT COUNTS
 
 EVM:
 ```solidity
@@ -368,10 +360,12 @@ for (uint i = 0; i < holders.length; i++) {
 }
 ```
 
-CashScript: **IMPOSSIBLE**. You must:
+CashScript (pre-May 2025): **IMPOSSIBLE**. You must:
 - Use fixed input/output counts per function
 - Create separate transactions for each iteration
 - Or redesign the architecture entirely
+
+**Note**: CashScript v0.13+ (activating May 2025) adds `for`, `while`, and `do-while` loop support.
 
 ### Lesson 3: NO INTERNAL CALLS - ONLY TRANSACTION STRUCTURE
 
@@ -400,7 +394,7 @@ else if (functionId == 0x01) { /* manage */ }
 
 EVM function -> CashScript contract file
 
-EVM contract with 8 functions -> 1 main contract + 8 function contracts
+EVM contract with 8 functions -> 1 main contract + 8 function contracts (plus sidecars as needed, see Lesson 6)
 
 ### Lesson 6: MANDATORY SIDECAR FOR TOKEN HOLDING
 
@@ -429,26 +423,30 @@ Every contract must explicitly check that outputs match expected:
 
 ### The Minimum Viable Contract
 
-The smallest real contract in ParityUSD (StabilityPoolSidecar):
+The smallest real contract in ParityUSD (LoanTokenSidecar.cash):
 ```cashscript
-contract StabilityPoolSidecar(bytes32 parityTokenId) {
+contract LoanTokenSidecar() {
     function attach() {
-        // STILL has real validation:
-        int mainIndex = this.activeInputIndex - 1;
+        // Authenticate loan at InputIndex - 1
+        int loanInputIndex = this.activeInputIndex - 1;
         require(tx.inputs[this.activeInputIndex].outpointTransactionHash ==
-                tx.inputs[mainIndex].outpointTransactionHash);
+                tx.inputs[loanInputIndex].outpointTransactionHash);
         require(tx.inputs[this.activeInputIndex].outpointIndex ==
-                tx.inputs[mainIndex].outpointIndex + 1);
+                tx.inputs[loanInputIndex].outpointIndex + 1);
 
-        // Output validation
-        require(tx.outputs[outputIndex].value == 1000);
-        require(tx.outputs[outputIndex].lockingBytecode ==
-                tx.inputs[this.activeInputIndex].lockingBytecode);
-        require(tx.outputs[outputIndex].nftCommitment == 0x);
-
-        // Token constraint
-        require(tx.outputs[outputIndex].tokenCategory == parityTokenId ||
-                tx.outputs[outputIndex].tokenCategory == 0x);
+        // Check if loan is recreated in outputs at loanInputIndex
+        bool isLoanRecreated = tx.outputs[loanInputIndex].tokenCategory ==
+                tx.inputs[loanInputIndex].tokenCategory;
+        if(isLoanRecreated){
+            // Recreate loanSidecar at corresponding outputIndex
+            require(tx.outputs[this.activeInputIndex].lockingBytecode ==
+                    tx.inputs[this.activeInputIndex].lockingBytecode);
+            require(tx.outputs[this.activeInputIndex].nftCommitment ==
+                    tx.inputs[this.activeInputIndex].nftCommitment);
+            require(tx.outputs[this.activeInputIndex].tokenCategory ==
+                    tx.inputs[this.activeInputIndex].tokenCategory);
+            require(tx.outputs[this.activeInputIndex].value == 1000);
+        }
     }
 }
 ```
