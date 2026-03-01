@@ -104,17 +104,17 @@ new LockingBytecodeNullData(bytes[] chunks)
 ### Units
 ```cashscript
 // BCH Units
-1 * sats         // 1 satoshi
-1 * finney       // 10 satoshis
-1 * bits         // 0.000001 BCH
-1 * bitcoin      // 1 BCH
+1 sats           // 1 satoshi
+1 finney         // 10 satoshis
+1 bits           // 0.000001 BCH
+1 bitcoin        // 1 BCH
 
 // Time Units
-1 * seconds      // 1 second
-1 * minutes      // 60 seconds
-1 * hours        // 3600 seconds
-1 * days         // 86400 seconds
-1 * weeks        // 604800 seconds
+1 seconds        // 1 second
+1 minutes        // 60 seconds
+1 hours          // 3600 seconds
+1 days           // 86400 seconds
+1 weeks          // 604800 seconds
 ```
 
 ## JavaScript/TypeScript SDK

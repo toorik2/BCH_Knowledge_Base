@@ -202,13 +202,10 @@ contract OverflowProtection() {
         require(a >= 0);
         require(b >= 0);
         
-        if (a == 0 || b == 0) {
-            // Safe multiplication by zero
-            return;
+        if (a != 0 && b != 0) {
+            int result = a * b;
+            require(result / a == b);  // Overflow check
         }
-        
-        int result = a * b;
-        require(result / a == b);  // Overflow check
     }
 }
 ```
@@ -253,7 +250,7 @@ contract StateValidation(bytes32 initialStateHash) {
 ### 1. Output Validation
 
 ```cashscript
-contract OutputValidator(bytes20 authorizedRecipient) {
+contract OutputValidator(bytes20 authorizedRecipient, pubkey owner) {
     function spend(sig ownerSig) {
         require(checkSig(ownerSig, owner));
         
@@ -273,7 +270,7 @@ contract OutputValidator(bytes20 authorizedRecipient) {
 ### 2. Input Validation
 
 ```cashscript
-contract InputValidator() {
+contract InputValidator(pubkey owner) {
     function spend(sig ownerSig) {
         require(checkSig(ownerSig, owner));
         
@@ -283,9 +280,9 @@ contract InputValidator() {
         
         // Validate input values
         int totalInput = 0;
-        for (int i = 0; i < tx.inputs.length; i++) {
+        for (int i = 0; i < tx.inputs.length; i = i + 1) {
             require(tx.inputs[i].value > 0);
-            totalInput += tx.inputs[i].value;
+            totalInput = totalInput + tx.inputs[i].value;
         }
         
         // Ensure sufficient input value
@@ -297,7 +294,7 @@ contract InputValidator() {
 ### 3. Fee Validation
 
 ```cashscript
-contract FeeValidator() {
+contract FeeValidator(pubkey owner) {
     function spend(sig ownerSig) {
         require(checkSig(ownerSig, owner));
         
@@ -305,12 +302,12 @@ contract FeeValidator() {
         int totalInput = 0;
         int totalOutput = 0;
         
-        for (int i = 0; i < tx.inputs.length; i++) {
-            totalInput += tx.inputs[i].value;
+        for (int i = 0; i < tx.inputs.length; i = i + 1) {
+            totalInput = totalInput + tx.inputs[i].value;
         }
-        
-        for (int i = 0; i < tx.outputs.length; i++) {
-            totalOutput += tx.outputs[i].value;
+
+        for (int i = 0; i < tx.outputs.length; i = i + 1) {
+            totalOutput = totalOutput + tx.outputs[i].value;
         }
         
         // Validate reasonable fee
@@ -336,7 +333,7 @@ contract HashValidator(bytes32 expectedHash) {
         require(sha256(preimage) == expectedHash);
         
         // Additional validation for sensitive data
-        require(preimage[0] != 0x00);  // Prevent null byte attacks
+        require(preimage.split(1)[0] != 0x00);  // Prevent null byte attacks
     }
 }
 ```
@@ -345,11 +342,11 @@ contract HashValidator(bytes32 expectedHash) {
 
 ```cashscript
 contract SignatureValidator(pubkey trustedKey) {
-    function validate(sig signature, bytes message) {
+    function validate(datasig signature, bytes message) {
         // Validate signature format
         require(signature.length > 0);
         require(signature != 0x00);  // Prevent null signature
-        
+
         // Validate message
         require(message.length > 0);
         require(message.length <= 256);
@@ -368,18 +365,12 @@ contract KeyValidator() {
         // Validate key format
         require(key.length == 33);  // Compressed public key
         
-        // Validate key prefix
-        require(key[0] == 0x02 || key[0] == 0x03);  // Valid compressed key prefix
-        
-        // Prevent all-zero keys
-        bool isZero = true;
-        for (int i = 1; i < key.length; i++) {
-            if (key[i] != 0x00) {
-                isZero = false;
-                break;
-            }
-        }
-        require(!isZero);
+        // Validate key prefix (first byte must be 0x02 or 0x03)
+        byte prefix = bytes(key).split(1)[0];
+        require(prefix == 0x02 || prefix == 0x03);
+
+        // Prevent null key by checking signature against it
+        // (in practice, just use checkSig — invalid keys fail naturally)
     }
 }
 ```

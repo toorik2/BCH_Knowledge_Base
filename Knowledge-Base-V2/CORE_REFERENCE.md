@@ -532,13 +532,16 @@ require(tx.outputs[0].value == tx.inputs[0].value + int(stakeFee));
 ## 11. Critical Gotchas
 
 ### No Short-Circuit Evaluation
-```cashscript
-// ❌ DANGEROUS - both sides always evaluated
-array.length > 0 && array[0] == value
+The operators `||` and `&&` don't apply common short-circuiting rules. This means that in the expression `f(x) || g(y)`, `g(y)` will still be executed even if `f(x)` evaluates to true.
 
-// ✅ SAFE - separate statements
-require(array.length > 0);
-require(array[0] == value);
+#### Nullfail example
+The `NULLFAIL` rule means passing an invalid signature to `checkSig()` does not return `false` — it fails the script. To safely return `false` on a signature check, use an empty `0x` signature instead:
+```cashscript
+// ❌ FAILS — userSig will be invalid for either seller or referee
+require(checkSig(userSig, seller) || checkSig(userSig, referee));
+
+// ✅ SAFE — use 2 different signatures, set unused to 0x so checkSig returns false
+require(checkSig(sellerSig, seller) || checkSig(refereeSig, referee));
 ```
 
 ### Time Comparison
@@ -574,12 +577,13 @@ require((flags & 0x01) == 0x01);
 
 ### Array Bounds
 ```cashscript
-// ❌ DANGEROUS - no automatic bounds checking
-tx.outputs[5].value
-
-// ✅ SAFE - always validate first
-require(tx.outputs.length > 5);
-require(tx.outputs[5].value >= amount);
+// Guard optional output access with if-statement (from ParityUSD)
+if (tx.outputs.length > 8) {
+    bytes tokenCategoryOutput8 = tx.outputs[8].tokenCategory;
+    if (tokenCategoryOutput8 != 0x) {
+        require(tokenCategoryOutput8.split(32)[0] != parityTokenId);
+    }
+}
 ```
 
 ---

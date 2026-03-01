@@ -94,7 +94,7 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 | ERC-721 | CashTokens NFT | Native: `nftCommitment`, capabilities |
 | `balanceOf[addr]` | `tx.inputs[i].tokenAmount` | Query UTXOs for token balance |
 | `view` functions | N/A | All validation happens in spending tx |
-| `pure` functions | User-defined functions | `function myFunc(): int { return 42; }` |
+| `pure` functions | N/A | No callable helper functions; each function is a separate spending path |
 | `public` function | All functions (no keyword) | No visibility modifiers in CashScript |
 | `private` function | `require(checkSig(s, pk))` | Gate access with signature checks |
 | `internal` function | N/A | No contract inheritance |
@@ -149,7 +149,7 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ❌ No contract inheritance (`is` keyword)
 - ❌ No `virtual`/`override` patterns
 - ✅ Single file contracts only
-- ✅ Copy-paste or user-defined functions for reuse
+- ✅ Copy-paste shared logic inline (no callable helper functions)
 
 ### Transaction Size Fees (Not Gas)
 - ❌ No opcode-based gas costs
@@ -192,10 +192,8 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ✅ Overflow checks: `require(a + b >= a)`
 
 ### Bitwise Operations
-- ❌ Current: No shift operators (`<<`, `>>`)
-- ❌ Current: No bitwise NOT (`~`)
-- ✅ Current: Only `&`, `|`, `^`
-- ✅ May 2026 upgrade: Full bitwise support including `~`, shifts
+- ✅ Current: `&`, `|`, `^` on `bytes`
+- ✅ May 2026 upgrade: `~` on `bytes`, `<<` and `>>` on both `int` and `bytes`
 
 ### Token Category Byte Order
 - ⚠️ `tokenCategory` returned in unreversed order (unlike tx hashes)
@@ -216,10 +214,10 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 - ✅ Transaction structure itself communicates state changes
 
 ### Loops
-- ❌ No `for`, `while` loops in v0.12.1 (current stable)
-- ✅ v0.13.0+: `do { } while()` syntax (experimental/beta, not yet released)
+- ✅ v0.13.0+: `for`, `while`, and `do { } while()` loops
+- ✅ No `break` or `continue` statements
+- ✅ Increment must be assignment: `i = i + 1` (no `i++`)
 - ✅ ALWAYS validate bounds: `require(count <= maxIterations)` before loop
-- ✅ Check loop state for overflows
 
 ### No Fallback/Receive
 - ❌ No automatic payment handling

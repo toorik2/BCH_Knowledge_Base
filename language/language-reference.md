@@ -74,6 +74,23 @@ bytes2 lockBlocks = commitment.split(38)[1];     // bytes2  (compiler knows: 40-
 - `split(literal)[1]` on unbounded `bytes` returns unbounded `bytes`
 - `split(variable)` returns unbounded `bytes` for both sides
 
+### v0.13 Type Casting Migration
+
+v0.13 introduced breaking changes to distinguish between **type conversions** (actual opcode-level operations that transform data) and **type casts** (compile-time type claims with no runtime effect, prefixed `unsafe_`). In v0.12, both used the same `bytesN()` syntax, which was ambiguous. Code written for v0.12 must be updated:
+
+| v0.12 Syntax | v0.13 Replacement | Purpose |
+|---|---|---|
+| `bytes4(intVal)` | `toPaddedBytes(intVal, 4)` | Encode int as fixed-width bytes (little-endian, zero-padded) |
+| `bytes4(bytesVal)` | `unsafe_bytes4(bytesVal)` | Claim unbounded bytes is exactly 4 bytes (no runtime check) |
+| `int(bytesVal)` | `int(bytesVal)` | Unchanged — converts bytes to Script Number |
+| `bool(intVal)` | `bool(intVal)` | Now actually converts (applies `OP_0NOTEQUAL`); previously was a no-op |
+
+New casts added in v0.13:
+- **`unsafe_int(bytesVal)`** — Reinterpret bytes as int without `OP_BIN2NUM` conversion
+- **`unsafe_bool(intVal)`** — Reinterpret int as bool without `OP_0NOTEQUAL` conversion
+
+The `toPaddedBytes(value, size)` function replaces all `bytesN(int)` encoding patterns. The size parameter can be any integer, not just powers of 2.
+
 ## FUNCTION REFERENCE
 
 | Function | Signature | Returns | Notes |
@@ -206,7 +223,7 @@ Critical when minting NFTs exist - without this check, minting capability allows
 
 **Pattern**: Contract introspects input commitment, enforces output commitment with updated state.
 ```cashscript
-contract StatefulContract(bytes32 stateTokenCategory) {
+contract StatefulContract(bytes32 stateTokenCategory, pubkey owner) {
     function updateState(sig ownerSig, bytes newState) {
         require(checkSig(ownerSig, owner));
         // Read current state from input NFT commitment
@@ -951,13 +968,11 @@ function anyFunction() {
 
 ## UNITS
 
-| BCH Units | Value | Time Units | Value |
-|-----------|-------|------------|-------|
-| `sats` | 1 | `seconds` | 1 |
-| `finney` | 100,000 | `minutes` | 60 |
-| `bits` | 100 | `hours` | 3,600 |
-| `bitcoin` | 100,000,000 | `days` | 86,400 |
-| - | - | `weeks` | 604,800 |
+Postfix suffixes (e.g. `1000 sats`, `30 minutes`). Rarely used — most code uses raw integers.
+
+**BCH**: `sats` (1), `finney` (10), `bits` (100), `bitcoin` (100,000,000)
+
+**Time**: `seconds` (1), `minutes` (60), `hours` (3,600), `days` (86,400), `weeks` (604,800)
 
 ## SYNTAX PATTERNS
 
@@ -1263,7 +1278,7 @@ contract MasterReference() {
 - Use `within(x, lower, upper)` for range checks (`x >= lower && x < upper`, upper is exclusive)
 - Use bitwise `&`, `|`, `^` for flag operations and masking
 - Store reused bytecode in variables vs. reconstructing
-- Extract common validation logic into separate contract functions
+- Each function is an independent spending path — functions cannot call each other
 - Check both `tx.time` and `this.age` for robust time locks
 - Validate token category AND amount for CashTokens
 - Use NULLFAIL behavior: empty sig `0x` returns false without failure

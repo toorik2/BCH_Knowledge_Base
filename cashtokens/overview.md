@@ -52,8 +52,8 @@ contract TokenValidator(bytes32 expectedCategory) {
 Available token properties in CashScript:
 
 ```cashscript
-// Token category (32 bytes)
-bytes32 category = tx.outputs[0].tokenCategory;
+// Token category (32 bytes + optional 1-byte capability: 0x01=mutable, 0x02=minting)
+bytes category = tx.outputs[0].tokenCategory;
 
 // Fungible token amount
 int amount = tx.outputs[0].tokenAmount;
@@ -234,7 +234,7 @@ contract TokenBurning(pubkey owner, bytes32 tokenCategory) {
 ### NFT-Based State Storage
 
 ```cashscript
-contract StatefulContract(bytes32 stateTokenCategory) {
+contract StatefulContract(bytes32 stateTokenCategory, pubkey owner) {
     function updateState(sig ownerSig, bytes newState) {
         require(checkSig(ownerSig, owner));
         
@@ -259,11 +259,10 @@ contract TokenGatedAccess(bytes32 requiredTokenCategory, int minimumAmount) {
         bool hasRequiredTokens = false;
         
         // Check all inputs for required tokens
-        for (int i = 0; i < tx.inputs.length; i++) {
+        for (int i = 0; i < tx.inputs.length; i = i + 1) {
             if (tx.inputs[i].tokenCategory == requiredTokenCategory) {
                 if (tx.inputs[i].tokenAmount >= minimumAmount) {
                     hasRequiredTokens = true;
-                    break;
                 }
             }
         }
@@ -421,16 +420,16 @@ contract TokenConservation(bytes32 tokenCategory) {
         int outputAmount = 0;
         
         // Sum input token amounts
-        for (int i = 0; i < tx.inputs.length; i++) {
+        for (int i = 0; i < tx.inputs.length; i = i + 1) {
             if (tx.inputs[i].tokenCategory == tokenCategory) {
-                inputAmount += tx.inputs[i].tokenAmount;
+                inputAmount = inputAmount + tx.inputs[i].tokenAmount;
             }
         }
         
         // Sum output token amounts
-        for (int i = 0; i < tx.outputs.length; i++) {
+        for (int i = 0; i < tx.outputs.length; i = i + 1) {
             if (tx.outputs[i].tokenCategory == tokenCategory) {
-                outputAmount += tx.outputs[i].tokenAmount;
+                outputAmount = outputAmount + tx.outputs[i].tokenAmount;
             }
         }
         
