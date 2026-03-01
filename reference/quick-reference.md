@@ -33,7 +33,7 @@ contract ContractName(Type param1, Type param2) {
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `<`, `<=`, `>`, `>=`, `==`, `!=` |
 | Logical | `!`, `&&`, `||` |
-| Bitwise | `&`, `|`, `^` |
+| Bitwise | `&`, `|`, `^` (current); `~`, `<<`, `>>` (May 2026) |
 
 ### Built-in Functions
 
@@ -57,7 +57,7 @@ hash256(any x) -> bytes32
 #### Signature Functions
 ```cashscript
 checkSig(sig s, pubkey pk) -> bool
-checkMultiSig(sig[] sigs, pubkey[] pks) -> bool
+checkMultiSig([sig, sig, ...], [pubkey, pubkey, ...]) -> bool  // inline array literals only
 checkDataSig(datasig s, bytes msg, pubkey pk) -> bool
 ```
 
@@ -66,7 +66,7 @@ checkDataSig(datasig s, bytes msg, pubkey pk) -> bool
 #### Time Variables
 ```cashscript
 tx.time        // Absolute time lock
-tx.age         // Relative time lock (UTXO age)
+this.age       // Relative time lock (UTXO age)
 ```
 
 #### Transaction Introspection
@@ -98,23 +98,23 @@ this.activeBytecode     // Current input bytecode
 new LockingBytecodeP2PKH(bytes20 pkHash)
 new LockingBytecodeP2SH20(bytes20 scriptHash)
 new LockingBytecodeP2SH32(bytes32 scriptHash)
-new LockingBytecodeNullData(bytes[] chunks)
+new LockingBytecodeNullData([chunk1, chunk2, ...])  // inline array literal
 ```
 
 ### Units
 ```cashscript
 // BCH Units
-1 * sats         // 1 satoshi
-1 * finney       // 0.001 BCH
-1 * bits         // 0.000001 BCH
-1 * bitcoin      // 1 BCH
+1 sats           // 1 satoshi
+1 finney         // 10 satoshis
+1 bits           // 0.000001 BCH
+1 bitcoin        // 1 BCH
 
 // Time Units
-1 * seconds      // 1 second
-1 * minutes      // 60 seconds
-1 * hours        // 3600 seconds
-1 * days         // 86400 seconds
-1 * weeks        // 604800 seconds
+1 seconds        // 1 second
+1 minutes        // 60 seconds
+1 hours          // 3600 seconds
+1 days           // 86400 seconds
+1 weeks          // 604800 seconds
 ```
 
 ## JavaScript/TypeScript SDK
@@ -154,39 +154,34 @@ const provider = new ElectrumNetworkProvider('mainnet');
 const contract = new Contract(artifact, constructorArgs, { provider });
 ```
 
-### Basic Transaction
+### Basic Transaction (TransactionBuilder)
 ```javascript
 const sigTemplate = new SignatureTemplate(privateKey);
 
-const txDetails = await contract.functions
-    .functionName(arg1, arg2)
-    .to('bitcoincash:address', amount)
-    .send();
-```
-
-### Advanced Transaction Builder
-```javascript
 const txDetails = await new TransactionBuilder({ provider })
-    .addInput(utxo, unlockingScript)
-    .addOutput({ to: address, amount: amount })
-    .setMaxFee(1000n)
+    .addInput(utxo, contract.unlock.functionName(arg1, arg2))
+    .addOutput({ to: 'bitcoincash:address', amount: amount })
     .send();
 ```
 
-### Transaction Options
+### TransactionBuilder Options
 ```javascript
-contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .withFeePerByte(1.1)           // Custom fee rate
-    .withHardcodedFee(1000n)       // Fixed fee
-    .withMinChange(5000n)          // Minimum change
-    .withoutChange()               // No change output
-    .withOpReturn(['data'])        // OP_RETURN output
-    .withTime(timestamp)           // Time lock
-    .withAge(blocks)               // Age lock
-    .send();
+new TransactionBuilder({
+    provider,                              // NetworkProvider (required)
+    maximumFeeSatoshis: 2000n,             // Max fee safety check
+    maximumFeeSatsPerByte: 2.0,            // Max fee per byte
+    allowImplicitFungibleTokenBurn: false,  // Default: false
+})
+    .addInput(utxo, unlocker)              // Add input with unlocker
+    .addInputs(utxos, unlocker)            // Add multiple inputs
+    .addOutput({ to, amount, token? })     // Add output
+    .addOpReturnOutput(['0x6d02', 'msg'])  // OP_RETURN output
+    .setLocktime(timestamp)                // Absolute time lock
+    .send();                               // Send (async)
+    // .build();                           // Build hex (sync)
 ```
+
+> The `contract.functions` simple transaction builder was removed in v0.13.0.
 
 ## CashTokens Integration
 
@@ -304,23 +299,18 @@ contract Oracle(pubkey oraclePk) {
 
 ### Debug Techniques
 ```javascript
-// Debug transaction
-const debugInfo = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .debug();
+const txBuilder = new TransactionBuilder({ provider })
+    .addInput(utxo, contract.unlock.spend(sigTemplate))
+    .addOutput({ to: address, amount: amount });
 
-// Build without sending
-const txHex = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .build();
+// Debug transaction locally
+const debugResult = txBuilder.debug();
+
+// Build without sending (synchronous, returns hex)
+const txHex = txBuilder.build();
 
 // Generate debug URI
-const uri = await contract.functions
-    .spend(sigTemplate)
-    .to(address, amount)
-    .bitauthUri();
+const uri = txBuilder.getBitauthUri();
 ```
 
 ## Security Checklist
@@ -353,28 +343,35 @@ new ElectrumNetworkProvider('mainnet')
 new ElectrumNetworkProvider('chipnet')
 
 // Custom server
-new ElectrumNetworkProvider('mainnet', 'server.example.com')
+new ElectrumNetworkProvider('mainnet', { hostname: 'server.example.com' })
 ```
 
-### Address Types
+### Contract Types
 ```javascript
 // P2SH32 (default, more secure)
-{ addressType: 'p2sh32' }
+{ contractType: 'p2sh32' }
 
 // P2SH20 (legacy, less secure)
-{ addressType: 'p2sh20' }
+{ contractType: 'p2sh20' }
+
+// P2S (direct script, more efficient)
+{ contractType: 'p2s' }
 ```
 
 ## Version Compatibility
 
 ### CashScript Versions
-- `^0.12.1` - Latest stable
-- `>=0.10.0` - Minimum supported
-- `^0.8.0` - Legacy support
+- `^0.13.0` - Next (May 2026, beta): loops, shift/`~` operators, `unsafe_` casts, `toPaddedBytes`, P2S
+- `^0.12.0` - Latest stable: removed old `contract.functions` builder
+- `^0.11.0` - BCH 2025 upgrade support, debug tooling on optimised bytecode
+- `^0.10.0` - `MockNetworkProvider`, `console.log()`, Jest utilities
+- `^0.9.0` - `TransactionBuilder` for multi-contract transactions
+- `^0.8.0` - CashTokens (`tokenCategory`, `nftCommitment`, `tokenAmount`), P2SH32
+- `^0.7.0` - Native introspection (`tx.inputs[]`, `tx.outputs[]`)
 
 ### Pragma Directive
 ```cashscript
-pragma cashscript ^0.13.0;  // Compatible with 0.11.x
+pragma cashscript ^0.13.0;  // Compatible with 0.13.x
 pragma cashscript >=0.13.0; // 0.13.0 and above (recommended for new projects)
 ```
 

@@ -385,12 +385,11 @@ require(tx.outputs.length <= MAX_OUTPUTS);
 ### Rule 6: Use Function Identifiers
 
 ```cashscript
-// Single-byte identifiers for function contracts
-enum LoanFunction {
-  LIQUIDATED = 0x01,
-  MANAGE_LOAN = 0x02,
-  // ...
-}
+// Single-byte identifiers for function contracts (used as NFT commitments)
+// 0x01 = liquidate
+// 0x02 = manage loan
+// 0x03 = pay interest
+// ...
 ```
 
 ### Rule 7: Minimum Value Requirements

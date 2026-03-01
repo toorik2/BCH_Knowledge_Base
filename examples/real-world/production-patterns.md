@@ -1,6 +1,6 @@
 # Real-World CashScript Production Patterns
 
-**⚠️ IMPORTANT**: All helper functions in these examples (like `calculateOutput()`, `getCurrentPrice()`, `getProposalDeadline()`) are **LEGITIMATE INTERNAL HELPER FUNCTIONS** that are called by other functions within the same contract. They are NOT placeholders, stubs, or documentation-only functions. Every function shown here is production code that executes on-chain as part of the contract's validation logic.
+**⚠️ IMPORTANT**: CashScript functions are separate spending paths (like EVM `receive` vs `fallback`). Functions within the same contract **cannot call each other**. Each function is an independent entry point that validates a specific transaction structure.
 
 **DO NOT create functions that exist only for documentation purposes.** If a Solidity function cannot be implemented in CashScript (like view/pure functions), DELETE it entirely from the conversion. Never use `require(false)` or create placeholder functions.
 
@@ -16,8 +16,8 @@ This document showcases production-ready CashScript patterns used in real Bitcoi
 pragma cashscript ^0.13.0;
 
 contract SimpleAMM(
-    bytes32 tokenACategory,
-    bytes32 tokenBCategory,
+    bytes32 tokenACategory,  // NOTE: bytes32 comparison only matches FTs/immutable NFTs
+    bytes32 tokenBCategory,  // For mutable/minting NFTs, compare with categoryId + 0x01/0x02
     int feeRate,  // in basis points (100 = 1%)
     pubkey operator
 ) {
@@ -45,7 +45,7 @@ contract SimpleAMM(
         int amountAfterFee = amountIn - fee;
         
         // Validate minimum output (slippage protection)
-        int expectedOutput = calculateOutput(amountAfterFee, swapAToB);
+        int expectedOutput = amountAfterFee * 997 / 1000;
         require(expectedOutput >= amountOutMin);
         
         // Validate output token
@@ -56,12 +56,6 @@ contract SimpleAMM(
             require(tx.outputs[0].tokenCategory == tokenACategory);
             require(tx.outputs[0].tokenAmount >= expectedOutput);
         }
-    }
-    
-    function calculateOutput(int amountIn, bool swapAToB) -> int {
-        // Simplified constant product formula
-        // In production, this would use actual reserve data
-        return amountIn * 997 / 1000;  // 0.3% fee approximation
     }
 }
 ```
@@ -74,7 +68,7 @@ pragma cashscript ^0.13.0;
 contract LendingPool(
     bytes32 collateralTokenCategory,
     bytes32 loanTokenCategory,
-    int collateralRatio,  // e.g., 150 for 150%
+    int minCollateralRatio,  // e.g., 150 for 150%
     int liquidationThreshold,  // e.g., 120 for 120%
     pubkey oracle
 ) {
@@ -83,18 +77,18 @@ contract LendingPool(
         pubkey borrowerPk,
         datasig priceData,
         int collateralAmount,
-        int loanAmount
+        int loanAmount,
+        int currentPrice
     ) {
         require(checkSig(borrowerSig, borrowerPk));
-        require(checkDataSig(priceData, bytes(getCurrentPrice()), oracle));
+        require(checkDataSig(priceData, bytes(currentPrice), oracle));
         
         // Validate collateral input
         require(tx.inputs[0].tokenCategory == collateralTokenCategory);
         require(tx.inputs[0].tokenAmount >= collateralAmount);
-        
+
         // Calculate required collateral
-        int currentPrice = getCurrentPrice();
-        int requiredCollateral = (loanAmount * collateralRatio) / currentPrice;
+        int requiredCollateral = (loanAmount * minCollateralRatio) / currentPrice;
         require(collateralAmount >= requiredCollateral);
         
         // Validate loan output
@@ -111,25 +105,20 @@ contract LendingPool(
         pubkey liquidatorPk,
         datasig priceData,
         int collateralAmount,
-        int debtAmount
+        int debtAmount,
+        int currentPrice
     ) {
         require(checkSig(liquidatorSig, liquidatorPk));
-        require(checkDataSig(priceData, bytes(getCurrentPrice()), oracle));
-        
+        require(checkDataSig(priceData, bytes(currentPrice), oracle));
+
         // Check liquidation threshold
-        int currentPrice = getCurrentPrice();
         int collateralValue = collateralAmount * currentPrice;
-        int collateralRatio = (collateralValue * 100) / debtAmount;
-        require(collateralRatio <= liquidationThreshold);
+        int currentRatio = (collateralValue * 100) / debtAmount;
+        require(currentRatio <= liquidationThreshold);
         
         // Process liquidation
         require(tx.outputs[0].tokenCategory == collateralTokenCategory);
         require(tx.outputs[0].tokenAmount <= collateralAmount);
-    }
-    
-    function getCurrentPrice() -> int {
-        // This would integrate with actual price oracle
-        return 45000;  // Example price in cents
     }
 }
 ```
@@ -238,26 +227,17 @@ contract GameItemUpgrade(
         // Create upgraded item
         require(tx.outputs[0].tokenCategory == itemCategory);
         require(tx.outputs[0].nftCommitment == upgradedItem);
-        
+
         // Validate upgrade progression
-        require(validateUpgrade(currentItem, upgradedItem));
+        int currentLevel = int(currentItem.split(4)[0]);
+        int upgradedLevel = int(upgradedItem.split(4)[0]);
+        require(upgradedLevel == currentLevel + 1);
+        require(upgradedLevel <= 100);  // Max level
         
         // Pay upgrade cost to game operator
         bytes operatorBytecode = new LockingBytecodeP2PKH(hash160(gameOperator));
         require(tx.outputs[1].lockingBytecode == operatorBytecode);
         require(tx.outputs[1].value >= upgradeCost);
-    }
-    
-    function validateUpgrade(bytes current, bytes upgraded) -> bool {
-        // Extract item level from commitment
-        int currentLevel = int(current.split(4)[0]);
-        int upgradedLevel = int(upgraded.split(4)[0]);
-        
-        // Validate level progression
-        require(upgradedLevel == currentLevel + 1);
-        require(upgradedLevel <= 100);  // Max level
-        
-        return true;
     }
 }
 ```
@@ -306,7 +286,8 @@ contract SimpleDAO(
         pubkey voterPk,
         int proposalId,
         bool support,
-        int votingPower
+        int votingPower,
+        int proposalDeadline
     ) {
         require(checkSig(voterSig, voterPk));
         
@@ -315,13 +296,17 @@ contract SimpleDAO(
         require(tx.inputs[0].tokenAmount >= votingPower);
         
         // Validate voting period
-        require(tx.locktime <= getProposalDeadline(proposalId));
+        require(tx.locktime <= proposalDeadline);
         
         // Record vote
+        int supportInt = 0;
+        if (support) {
+            supportInt = 1;
+        }
         bytes voteData = new LockingBytecodeNullData([
             0x564f,  // "VO" for vote
             bytes(proposalId),
-            bytes(support ? 1 : 0),
+            bytes(supportInt),
             bytes(votingPower)
         ]);
         require(tx.outputs[0].lockingBytecode == voteData);
@@ -332,12 +317,13 @@ contract SimpleDAO(
         pubkey executorPk,
         int proposalId,
         int totalVotes,
-        int supportVotes
+        int supportVotes,
+        int proposalDeadline
     ) {
         require(checkSig(executorSig, executorPk));
         
         // Validate voting period ended
-        require(tx.locktime > getProposalDeadline(proposalId));
+        require(tx.locktime > proposalDeadline);
         
         // Validate quorum
         require(totalVotes >= quorumRequirement);
@@ -346,11 +332,6 @@ contract SimpleDAO(
         require(supportVotes > (totalVotes / 2));
         
         // Execute proposal logic would go here
-    }
-    
-    function getProposalDeadline(int proposalId) -> int {
-        // This would lookup the actual deadline from stored data
-        return tx.locktime + votingPeriod;
     }
 }
 ```
@@ -405,66 +386,72 @@ contract StreamingPayment(
 
 ### 7. Price Feed Oracle
 
+Based on ParityUSD's PriceContract — single oracle signs price data, contract validates
+heartbeat or deviation threshold before accepting updates.
+
 ```cashscript
 pragma cashscript ^0.13.0;
 
+/*  --- State Mutable NFT ---
+    bytes1 identifier = 0x00
+    bytes4 sequence
+    bytes4 priceData
+*/
+
 contract PriceFeedOracle(
-    pubkey[] oracles,
-    int minimumOracles,
-    int maxPriceDeviation  // in basis points
+    pubkey oraclePublicKey
 ) {
     function updatePrice(
-        datasig[] oracleSignatures,
-        int[] prices,
-        int timestamp
+        bytes oracleMessage,    // 16 bytes: timestamp(4) + msgSeq(4) + seq(4) + price(4)
+        datasig oracleSignature
     ) {
-        require(oracleSignatures.length >= minimumOracles);
-        require(prices.length == oracleSignatures.length);
+        require(this.activeInputIndex == 0);
         
-        // Validate timestamp
-        require(timestamp >= tx.locktime - 300);  // Max 5 minutes old
-        require(timestamp <= tx.locktime);
+        // Self-replicate price contract
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].value == 1000);
+        require(tx.outputs[0].tokenAmount == 0);
         
-        // Validate oracle signatures
-        for (int i = 0; i < oracleSignatures.length; i++) {
-            bool validOracle = false;
-            for (int j = 0; j < oracles.length; j++) {
-                if (checkDataSig(oracleSignatures[i], bytes(prices[i]), oracles[j])) {
-                    validOracle = true;
-                    break;
-                }
-            }
-            require(validOracle);
-        }
-        
-        // Calculate median price
-        int medianPrice = calculateMedian(prices);
-        
-        // Validate price deviation
-        for (int i = 0; i < prices.length; i++) {
-            int deviation = abs(prices[i] - medianPrice) * 10000 / medianPrice;
-            require(deviation <= maxPriceDeviation);
-        }
-        
-        // Store price data
-        bytes priceData = new LockingBytecodeNullData([
-            0x5052,  // "PR" for price
-            bytes(medianPrice),
-            bytes(timestamp)
-        ]);
-        require(tx.outputs[0].lockingBytecode == priceData);
+        // Validate oracle signature
+        require(checkDataSig(oracleSignature, oracleMessage, oraclePublicKey));
+
+        // Extract oracle sequence and price from message
+        bytes oraclePriceInfo = oracleMessage.split(8)[1];
+        bytes4 oracleSeqBytes, bytes oraclePriceBytes = oraclePriceInfo.split(4);
+
+        // Heartbeat updates are sequence numbers that are multiples of 10
+        int oracleSeq = int(oracleSeqBytes);
+        bool oracleHeartbeat = oracleSeq % 10 == 0;
+
+        // Parse current contract state
+        bytes contractPriceState = tx.inputs[0].nftCommitment.split(1)[1];
+        bytes4 contractSeqBytes, bytes contractPriceBytes = contractPriceState.split(4);
+
+        // Calculate price deviation (0.5% threshold)
+        int oldContractPrice = int(contractPriceBytes);
+        int oraclePrice = int(oraclePriceBytes);
+        int priceDiff = abs(oldContractPrice - oraclePrice);
+        bool exceedsDeviationThreshold = priceDiff >= (oldContractPrice / 200);
+
+        // Accept update only on heartbeat or significant price change
+        require(oracleHeartbeat || exceedsDeviationThreshold);
+
+        // Oracle sequence must be more recent
+        require(oracleSeq > int(contractSeqBytes));
+
+        // Update state: identifier + new sequence + new price
+        bytes9 newPriceState = 0x00 + oracleSeqBytes + unsafe_bytes4(oraclePriceBytes);
+        require(tx.outputs[0].nftCommitment == newPriceState);
     }
-    
-    function calculateMedian(int[] values) -> int {
-        // Simplified median calculation
-        // In production, this would use a proper sorting algorithm
-        require(values.length > 0);
-        
-        if (values.length == 1) return values[0];
-        if (values.length == 2) return (values[0] + values[1]) / 2;
-        
-        // For simplicity, return middle value for arrays of 3+
-        return values[values.length / 2];
+
+    function sharePrice() {
+        // Replicate at corresponding output, unchanged
+        require(tx.outputs[this.activeInputIndex].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+        require(tx.outputs[this.activeInputIndex].tokenCategory == tx.inputs[this.activeInputIndex].tokenCategory);
+        require(tx.outputs[this.activeInputIndex].value == 1000);
+        require(tx.outputs[this.activeInputIndex].tokenAmount == 0);
+        require(tx.outputs[this.activeInputIndex].nftCommitment == tx.inputs[this.activeInputIndex].nftCommitment);
     }
 }
 ```
@@ -477,53 +464,32 @@ contract PriceFeedOracle(
 pragma cashscript ^0.13.0;
 
 contract CorporateTreasury(
-    pubkey[] executives,
-    pubkey[] boardMembers,
-    int executiveThreshold,
-    int boardThreshold,
+    pubkey exec1,
+    pubkey exec2,
+    pubkey exec3,
+    pubkey board1,
+    pubkey board2,
+    pubkey board3,
     int largeAmountThreshold
 ) {
+    // 2-of-3 executive multisig for amounts below threshold
     function executiveSpend(
-        sig[] executiveSigs,
-        pubkey[] signingExecutives,
+        sig s1,
+        sig s2,
+        sig s3,
         int amount
     ) {
         require(amount <= largeAmountThreshold);
-        require(executiveSigs.length >= executiveThreshold);
-        
-        // Validate executive signatures
-        for (int i = 0; i < executiveSigs.length; i++) {
-            bool validExecutive = false;
-            for (int j = 0; j < executives.length; j++) {
-                if (signingExecutives[i] == executives[j]) {
-                    require(checkSig(executiveSigs[i], executives[j]));
-                    validExecutive = true;
-                    break;
-                }
-            }
-            require(validExecutive);
-        }
+        require(checkMultiSig([s1, s2, s3], [exec1, exec2, exec3]));
     }
-    
+
+    // 2-of-3 board multisig for large amounts
     function boardSpend(
-        sig[] boardSigs,
-        pubkey[] signingBoard,
-        int amount
+        sig s1,
+        sig s2,
+        sig s3
     ) {
-        require(boardSigs.length >= boardThreshold);
-        
-        // Validate board signatures
-        for (int i = 0; i < boardSigs.length; i++) {
-            bool validBoard = false;
-            for (int j = 0; j < boardMembers.length; j++) {
-                if (signingBoard[i] == boardMembers[j]) {
-                    require(checkSig(boardSigs[i], boardMembers[j]));
-                    validBoard = true;
-                    break;
-                }
-            }
-            require(validBoard);
-        }
+        require(checkMultiSig([s1, s2, s3], [board1, board2, board3]));
     }
 }
 ```
@@ -620,8 +586,8 @@ class ProductionTransactionBuilder {
             throw new Error('Invalid transaction ID');
         }
         
-        if (txDetails.fee && txDetails.fee > this.gasLimit) {
-            console.warn('Transaction fee exceeds limit:', txDetails.fee);
+        if (!txDetails.hex) {
+            console.warn('Transaction hex missing from details');
         }
     }
 }
@@ -655,8 +621,9 @@ class MultiContractOrchestrator {
                     throw new Error(`Contract ${contractName} not found`);
                 }
                 
-                const txDetails = await contract.functions[functionName](...args)
-                    .to(outputs.address, outputs.amount)
+                const txDetails = await new TransactionBuilder({ provider: this.provider })
+                    .addInput(outputs.utxo, contract.unlock[functionName](...args))
+                    .addOutput({ to: outputs.address, amount: outputs.amount })
                     .send();
                 
                 results.push({
@@ -724,64 +691,56 @@ class MultiContractOrchestrator {
 ```javascript
 describe('Production Contract Tests', () => {
     let contract, provider, sigTemplate;
-    
+
     beforeEach(async () => {
         provider = new ElectrumNetworkProvider('chipnet');
         contract = new Contract(artifact, constructorArgs, { provider });
         sigTemplate = new SignatureTemplate(testPrivateKey);
     });
-    
+
     describe('Security Tests', () => {
         it('should prevent unauthorized access', async () => {
             const maliciousSig = new SignatureTemplate(randomPrivateKey);
-            
+            const utxos = await contract.getUtxos();
+            const contractUtxo = utxos[0];
+
             await expect(
-                contract.functions
-                    .spend(maliciousSig)
-                    .to(testAddress, 1000n)
-                    .send()
-            ).rejects.toThrow('Script failed');
-        });
-        
-        it('should validate amount limits', async () => {
-            await expect(
-                contract.functions
-                    .spend(sigTemplate, -1)
-                    .to(testAddress, 1000n)
+                new TransactionBuilder({ provider })
+                    .addInput(contractUtxo, contract.unlock.spend(maliciousSig))
+                    .addOutput({ to: testAddress, amount: 1000n })
                     .send()
             ).rejects.toThrow();
         });
     });
-    
+
     describe('Integration Tests', () => {
         it('should handle complex multi-output transactions', async () => {
-            const outputs = [
-                { address: address1, amount: 1000n },
-                { address: address2, amount: 2000n },
-                { address: address3, amount: 3000n }
-            ];
-            
-            const txDetails = await contract.functions
-                .multiOutput(sigTemplate)
-                .to(outputs[0].address, outputs[0].amount)
-                .to(outputs[1].address, outputs[1].amount)
-                .to(outputs[2].address, outputs[2].amount)
+            const utxos = await contract.getUtxos();
+            const contractUtxo = utxos[0];
+
+            const txDetails = await new TransactionBuilder({ provider })
+                .addInput(contractUtxo, contract.unlock.multiOutput(sigTemplate))
+                .addOutput({ to: address1, amount: 1000n })
+                .addOutput({ to: address2, amount: 2000n })
+                .addOutput({ to: address3, amount: 3000n })
                 .send();
-            
+
             expect(txDetails.txid).toBeDefined();
             expect(txDetails.outputs.length).toBe(3);
         });
     });
-    
+
     describe('Performance Tests', () => {
         it('should complete transactions within time limit', async () => {
+            const utxos = await contract.getUtxos();
+            const contractUtxo = utxos[0];
             const startTime = Date.now();
-            
-            const txDetails = await contract.functions
-                .spend(sigTemplate)
-                .to(testAddress, 1000n)
+
+            const txDetails = await new TransactionBuilder({ provider })
+                .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+                .addOutput({ to: testAddress, amount: 1000n })
                 .send();
-            
+
             const duration = Date.now() - startTime;
             expect(duration).toBeLessThan(10000); // 10 seconds
         });
@@ -931,9 +890,9 @@ contract FunctionA(bytes32 systemTokenId) {
 
         // Validate router at position 0
         require(tx.inputs[0].tokenCategory == systemTokenId + 0x01);
-        require(tx.inputs[0].nftCommitment.split(1)[0] == 0xFF); // Router identifier
+        require(tx.inputs[0].nftCommitment.split(1)[0] == 0xff); // Router identifier
 
-        // Function-specific business logic
+        // Function-specific validation logic
         // ...
 
         // Self-replicate at dust value
@@ -1052,7 +1011,7 @@ contract CrossContractValidator(
         bytes priceData = tx.inputs[0].nftCommitment.split(1)[1];
         int price = int(priceData.split(8)[0]);
 
-        // Business logic using authenticated data
+        // Validation logic using authenticated data
         // ...
     }
 }

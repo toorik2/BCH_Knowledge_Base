@@ -154,7 +154,7 @@ contract TokenSidecar() {
 
 **Problem**: Complex contracts with many functions become hard to maintain and expensive.
 
-**Solution**: Split each logical "function" into a separate contract authenticated by NFT commitment bytes.
+**Solution**: Split each logical "function" into a separate contract file, authenticated by NFT commitment bytes. Function contracts are typically stateless with a single-byte identifier as their entire commitment, but they can also carry state after the identifier prefix.
 
 ```
 MainCoordinator.cash

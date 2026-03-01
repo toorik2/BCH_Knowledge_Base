@@ -35,12 +35,15 @@ Access token properties through transaction introspection:
 ```cashscript
 contract TokenValidator(bytes32 expectedCategory) {
     function validateToken() {
-        // Check token category
+        // tokenCategory is 32 bytes for FTs/immutable NFTs, 33 bytes for mutable/minting.
+        // Direct bytes32 comparison matches FTs and immutable NFTs:
         require(tx.outputs[0].tokenCategory == expectedCategory);
-        
+        // For mutable NFTs: expectedCategory + 0x01
+        // For minting NFTs: expectedCategory + 0x02
+
         // Check token amount (for fungible tokens)
         require(tx.outputs[0].tokenAmount >= 100);
-        
+
         // Check NFT commitment (for NFTs)
         require(tx.outputs[0].nftCommitment.length > 0);
     }
@@ -52,8 +55,8 @@ contract TokenValidator(bytes32 expectedCategory) {
 Available token properties in CashScript:
 
 ```cashscript
-// Token category (32 bytes)
-bytes32 category = tx.outputs[0].tokenCategory;
+// Token category (32 bytes + optional 1-byte capability: 0x01=mutable, 0x02=minting)
+bytes category = tx.outputs[0].tokenCategory;
 
 // Fungible token amount
 int amount = tx.outputs[0].tokenAmount;
@@ -89,9 +92,9 @@ contract FungibleTokenTransfer(bytes32 tokenCategory, int minimumAmount) {
 contract NFTTransfer(bytes32 tokenCategory, bytes expectedCommitment) {
     function transfer(sig ownerSig, pubkey ownerPk) {
         require(checkSig(ownerSig, ownerPk));
-        
-        // Ensure correct token category
-        require(tx.outputs[0].tokenCategory == tokenCategory);
+
+        // Ensure correct token category (mutable NFT — append 0x01)
+        require(tx.outputs[0].tokenCategory == tokenCategory + 0x01);
         
         // Ensure specific NFT commitment
         require(tx.outputs[0].nftCommitment == expectedCommitment);
@@ -106,35 +109,45 @@ contract NFTTransfer(bytes32 tokenCategory, bytes expectedCommitment) {
 #### Fungible Token Output
 
 ```javascript
-const txDetails = await contract.functions
-    .transfer(sigTemplate)
-    .to({
-        to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca',
-        amount: 1000n,  // BCH amount in satoshis
-        token: {
-            category: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-            amount: 100n  // Token amount
-        }
-    })
+const contractUtxos = await contract.getUtxos();
+const contractUtxo = contractUtxos[0];
+
+const tokenOutput = {
+    to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca',
+    amount: 1000n,  // BCH amount in satoshis
+    token: {
+        category: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        amount: 100n  // Token amount
+    }
+};
+
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.transfer(sigTemplate))
+    .addOutput(tokenOutput)
     .send();
 ```
 
 #### NFT Output
 
 ```javascript
-const txDetails = await contract.functions
-    .transfer(sigTemplate)
-    .to({
-        to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca',
-        amount: 1000n,
-        token: {
-            category: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-            nft: {
-                capability: 'none',  // 'none', 'mutable', 'minting'
-                commitment: Buffer.from('unique-data-here')
-            }
+const contractUtxos = await contract.getUtxos();
+const contractUtxo = contractUtxos[0];
+
+const nftOutput = {
+    to: 'bitcoincash:qr7gmtgmvsdtuwcskladnsrqrzf24td68qxg9rsqca',
+    amount: 1000n,
+    token: {
+        category: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        nft: {
+            capability: 'none',  // 'none', 'mutable', 'minting'
+            commitment: Buffer.from('unique-data-here')
         }
-    })
+    }
+};
+
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxo, contract.unlock.transfer(sigTemplate))
+    .addOutput(nftOutput)
     .send();
 ```
 
@@ -234,7 +247,7 @@ contract TokenBurning(pubkey owner, bytes32 tokenCategory) {
 ### NFT-Based State Storage
 
 ```cashscript
-contract StatefulContract(bytes32 stateTokenCategory) {
+contract StatefulContract(bytes32 stateTokenCategory, pubkey owner) {
     function updateState(sig ownerSig, bytes newState) {
         require(checkSig(ownerSig, owner));
         
@@ -254,21 +267,10 @@ contract StatefulContract(bytes32 stateTokenCategory) {
 contract TokenGatedAccess(bytes32 requiredTokenCategory, int minimumAmount) {
     function access(sig userSig, pubkey userPk) {
         require(checkSig(userSig, userPk));
-        
-        // User must hold minimum token amount
-        bool hasRequiredTokens = false;
-        
-        // Check all inputs for required tokens
-        for (int i = 0; i < tx.inputs.length; i++) {
-            if (tx.inputs[i].tokenCategory == requiredTokenCategory) {
-                if (tx.inputs[i].tokenAmount >= minimumAmount) {
-                    hasRequiredTokens = true;
-                    break;
-                }
-            }
-        }
-        
-        require(hasRequiredTokens);
+
+        // Require a token input at a known position (e.g., input 1)
+        require(tx.inputs[1].tokenCategory == requiredTokenCategory);
+        require(tx.inputs[1].tokenAmount >= minimumAmount);
     }
 }
 ```
@@ -328,44 +330,32 @@ contract TokenVesting(
 ### Multi-Token Portfolio
 
 ```javascript
-// SDK example for managing multiple tokens
-class TokenPortfolio {
-    constructor(contract, provider) {
-        this.contract = contract;
-        this.provider = provider;
-    }
-    
-    async getTokenBalances() {
-        const utxos = await this.contract.getUtxos();
-        const balances = new Map();
-        
-        for (const utxo of utxos) {
-            if (utxo.token && utxo.token.amount > 0) {
-                const category = utxo.token.category;
-                const current = balances.get(category) || 0n;
-                balances.set(category, current + utxo.token.amount);
-            }
-        }
-        
-        return balances;
-    }
-    
-    async transferToken(tokenCategory, amount, recipient) {
-        const sigTemplate = new SignatureTemplate(this.privateKey);
-        
-        return await this.contract.functions
-            .transfer(sigTemplate)
-            .to({
-                to: recipient,
-                amount: 1000n,
-                token: {
-                    category: tokenCategory,
-                    amount: amount
-                }
-            })
-            .send();
+// Get token balances from a contract's UTXOs
+const utxos = await contract.getUtxos();
+const balances = new Map();
+
+for (const utxo of utxos) {
+    if (utxo.token && utxo.token.amount > 0) {
+        const category = utxo.token.category;
+        const current = balances.get(category) || 0n;
+        balances.set(category, current + utxo.token.amount);
     }
 }
+
+// Transfer tokens
+const tokenUtxo = utxos.find(u => u.token?.category === tokenCategory);
+const sigTemplate = new SignatureTemplate(privateKey);
+
+const tokenOutput = {
+    to: recipientAddress,
+    amount: 1000n,
+    token: { category: tokenCategory, amount: 100n }
+};
+
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(tokenUtxo, contract.unlock.transfer(sigTemplate))
+    .addOutput(tokenOutput)
+    .send();
 ```
 
 ## CashTokens Best Practices
@@ -414,27 +404,41 @@ contract NFTHandler() {
 
 ### 4. Token Conservation
 
+Token conservation with fixed input/output positions (no loops needed):
+
 ```cashscript
 contract TokenConservation(bytes32 tokenCategory) {
     function conserveTokens() {
+        // Validate token at known positions
+        require(tx.inputs[0].tokenCategory == tokenCategory);
+        require(tx.outputs[0].tokenCategory == tokenCategory);
+
+        // Ensure tokens are conserved (fixed 1-in, 1-out)
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+    }
+}
+```
+
+For dynamic input/output counts, use loops (v0.13.0+ / May 2026):
+
+```cashscript
+contract TokenConservationDynamic(bytes32 tokenCategory) {
+    function conserveTokens() {
         int inputAmount = 0;
         int outputAmount = 0;
-        
-        // Sum input token amounts
-        for (int i = 0; i < tx.inputs.length; i++) {
+
+        for (int i = 0; i < tx.inputs.length; i = i + 1) {
             if (tx.inputs[i].tokenCategory == tokenCategory) {
-                inputAmount += tx.inputs[i].tokenAmount;
+                inputAmount = inputAmount + tx.inputs[i].tokenAmount;
             }
         }
-        
-        // Sum output token amounts
-        for (int i = 0; i < tx.outputs.length; i++) {
+
+        for (int i = 0; i < tx.outputs.length; i = i + 1) {
             if (tx.outputs[i].tokenCategory == tokenCategory) {
-                outputAmount += tx.outputs[i].tokenAmount;
+                outputAmount = outputAmount + tx.outputs[i].tokenAmount;
             }
         }
-        
-        // Ensure tokens are conserved
+
         require(inputAmount >= outputAmount);
     }
 }
@@ -489,16 +493,16 @@ const commitment = Buffer.from('metadata', 'utf8');  // Max 128 bytes
 ```javascript
 describe('Token Contract', () => {
     it('should transfer tokens correctly', async () => {
-        const txDetails = await contract.functions
-            .transfer(sigTemplate)
-            .to({
-                to: recipientAddress,
-                amount: 1000n,
-                token: {
-                    category: tokenCategory,
-                    amount: 50n
-                }
-            })
+        const utxos = await contract.getUtxos();
+        const contractUtxo = utxos[0];
+        const tokenOutput = {
+            to: recipientAddress,
+            amount: 1000n,
+            token: { category: tokenCategory, amount: 50n }
+        };
+        const txDetails = await new TransactionBuilder({ provider })
+            .addInput(contractUtxo, contract.unlock.transfer(sigTemplate))
+            .addOutput(tokenOutput)
             .send();
         
         expect(txDetails.txid).toBeDefined();

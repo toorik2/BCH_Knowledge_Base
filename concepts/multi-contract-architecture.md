@@ -73,7 +73,7 @@ A contract with many functions becomes:
 - Difficult to upgrade
 
 ### The Solution
-Split each logical "function" into a separate contract file, authenticated by NFT commitment bytes.
+Split each logical "function" into a separate contract file, authenticated by NFT commitment bytes. Function contracts are typically stateless with a single-byte identifier as their entire commitment, but they can also carry state after the identifier prefix.
 
 ```
 MainCoordinator.cash
@@ -139,7 +139,7 @@ contract FunctionA(bytes32 systemTokenId) {
 
         // Validate main coordinator at position 0
         require(tx.inputs[0].tokenCategory == systemTokenId + 0x01);
-        require(tx.inputs[0].nftCommitment.split(1)[0] == 0xFF); // Main identifier
+        require(tx.inputs[0].nftCommitment.split(1)[0] == 0xff); // Main identifier
 
         // Function-specific validation
         // ...
@@ -154,9 +154,8 @@ contract FunctionA(bytes32 systemTokenId) {
 
 ### Benefits
 - **Modularity**: Add new functions without changing main contract
-- **Efficiency**: Only load code for the function being executed
+- **Transaction size**: Only the function being executed is included in the transaction
 - **Security**: Each function can have specific output limits
-- **Upgradability**: Deploy new function contracts while keeping main contract
 
 ---
 
@@ -594,7 +593,7 @@ contract ProposalCounter() {
         require(tx.outputs[2].tokenAmount == tx.inputs[2].tokenAmount);
         // Commitment validated by VotingBooth (vote count increment)
         // But we still verify structure is preserved
-        bytes4 proposalIdx = unsafe_bytes4(tx.inputs[2].nftCommitment.split(4)[0]);  // split needs cast
+        bytes4 proposalIdx = tx.inputs[2].nftCommitment.split(4)[0];  // split(4)[0] returns bytes4
         bytes32 proposalName = tx.inputs[2].nftCommitment.slice(12, 44);  // slice returns bytes32
         bytes8 newVoteCount = tx.outputs[2].nftCommitment.slice(4, 12);   // slice returns bytes8
         require(tx.outputs[2].nftCommitment.split(4)[0] == proposalIdx);
