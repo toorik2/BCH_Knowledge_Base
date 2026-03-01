@@ -351,7 +351,7 @@ bytes commitment = 0x01 + toPaddedBytes(balance, 6) + pubkeyhash;
 require(tx.outputs[0].nftCommitment == commitment);
 ```
 
-### Lesson 2: NO LOOPS (YET) - FIXED INPUT/OUTPUT COUNTS
+### Lesson 2: LIMITED LOOPS - FIXED INPUT/OUTPUT COUNTS
 
 EVM:
 ```solidity
@@ -360,12 +360,12 @@ for (uint i = 0; i < holders.length; i++) {
 }
 ```
 
-CashScript (pre-May 2025): **IMPOSSIBLE**. You must:
+CashScript (pre-v0.13): **IMPOSSIBLE**. You must:
 - Use fixed input/output counts per function
 - Create separate transactions for each iteration
 - Or redesign the architecture entirely
 
-**Note**: CashScript v0.13+ (activating May 2025) adds `for`, `while`, and `do-while` loop support.
+**Note**: CashScript v0.13+ (May 2026) adds `for`, `while`, and `do-while` loop support. No `i++`, `i += 1`, `break`, or `continue` — use `i = i + 1`.
 
 ### Lesson 3: NO INTERNAL CALLS - ONLY TRANSACTION STRUCTURE
 

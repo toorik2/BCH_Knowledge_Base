@@ -593,7 +593,7 @@ contract ProposalCounter() {
         require(tx.outputs[2].tokenAmount == tx.inputs[2].tokenAmount);
         // Commitment validated by VotingBooth (vote count increment)
         // But we still verify structure is preserved
-        bytes4 proposalIdx = unsafe_bytes4(tx.inputs[2].nftCommitment.split(4)[0]);  // split needs cast
+        bytes4 proposalIdx = tx.inputs[2].nftCommitment.split(4)[0];  // split(4)[0] returns bytes4
         bytes32 proposalName = tx.inputs[2].nftCommitment.slice(12, 44);  // slice returns bytes32
         bytes8 newVoteCount = tx.outputs[2].nftCommitment.slice(4, 12);   // slice returns bytes8
         require(tx.outputs[2].nftCommitment.split(4)[0] == proposalIdx);

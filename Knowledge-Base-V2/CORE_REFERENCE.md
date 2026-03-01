@@ -59,13 +59,13 @@ CashScript:
 | Type | Size | Operations | Methods | Conversions |
 |------|------|-----------|---------|-------------|
 | `bool` | 1 bit | `! && \|\| == !=` | - | `int(bool)` |
-| `int` | Variable | `+ - * / % << >> < <= > >= == !=` | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` |
+| `int` | Variable | `+ - * / % < <= > >= == !=` `<< >>` (May 2026) | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` |
 | `string` | Variable | `+ == !=` | `.length` `.reverse()` `.split(i)` `.slice(s,e)` | `bytes(string)` |
-| `bytes` | Variable | `+ == != & \| ^ << >> ~` | `.length` `.reverse()` `.split(i)` `.slice(s,e)` | - |
+| `bytes` | Variable | `+ == != & \| ^` `<< >> ~` (May 2026) | `.length` `.reverse()` `.split(i)` `.slice(s,e)` | - |
 | `bytesN` | N bytes (1-64) | Same as bytes | Same as bytes | `unsafe_bytesN(bytes)` |
 | `pubkey` | 33 bytes | `== !=` | - | Auto to bytes |
-| `sig` | ~65 bytes | `== !=` | - | Auto to bytes |
-| `datasig` | ~64 bytes | `== !=` | - | Auto to bytes |
+| `sig` | 65 (Schnorr) or 71-73 (ECDSA) | `== !=` | - | Auto to bytes |
+| `datasig` | 64 (Schnorr) or 70-72 (ECDSA) | `== !=` | - | Auto to bytes |
 
 **Common bytesN**: `bytes1` (byte), `bytes4` (prefix), `bytes20` (hash160), `bytes32` (sha256), `bytes64` (signature)
 
@@ -96,7 +96,7 @@ Prior to v0.13, only `bytes1` through `bytes8` could be cast to `int`. This limi
 | Equality | `== !=` | `int` `bool` `bytes` `string` `pubkey` `sig` `datasig` | Any matching types |
 | Logical | `! && \|\|` | `bool` | **NO short-circuit** (all operands evaluated) |
 | Bitwise | `& \| ^ ~` | `bytes` (same size) | Operands must be same-size bytes |
-| Shift | `<< >>` | left: `int` or `bytes`, right: `int` | Arithmetic (int) or bitwise (bytes) shift |
+| Shift | `<< >>` | left: `int` or `bytes`, right: `int` | May 2026 upgrade. Arithmetic (int) or bitwise (bytes) shift |
 | Concatenation | `+` | `string` `bytes` | - |
 | Unary | `- !` | `int` `bool` | `-` for int, `!` for bool |
 
@@ -164,7 +164,7 @@ this.age                // int: Relative UTXO age in blocks (SDK limitation)
 new LockingBytecodeP2PKH(bytes20 pkHash)       // Pay to public key hash
 new LockingBytecodeP2SH20(bytes20 scriptHash)  // Pay to script hash (20-byte, legacy)
 new LockingBytecodeP2SH32(bytes32 scriptHash)  // Pay to script hash (32-byte, default)
-new LockingBytecodeNullData(bytes[] chunks)    // OP_RETURN data output
+new LockingBytecodeNullData([chunk1, chunk2, ...])  // OP_RETURN data (inline array literal)
 ```
 
 ---
@@ -520,7 +520,7 @@ require(tx.outputs[0].value == tx.inputs[0].value + int(stakeFee));
 | `msg.value` | `tx.inputs[this.activeInputIndex].value` | Sum inputs, validate outputs |
 | `transfer(recipient, amount)` | `require(tx.outputs[0].value >= amount)` | Covenant-based |
 | `emit Event(data)` | N/A | Transaction IS the event |
-| `for(uint i=0; i<n; i++)` | `do { i=i+1; } while(i<n)` | Beta in v0.13.0 |
+| `for(uint i=0; i<n; i++)` | `for (int i = 0; i < n; i = i + 1) { }` | v0.13.0+ (May 2026). No `i++` or `i += 1` |
 | `x++`, `x += 1` | `x = x + 1;` | No compound assignment |
 | `import` | N/A | Single file contracts |
 | `interface/library` | N/A | No code reuse mechanisms |
@@ -572,7 +572,7 @@ require((flags & 0x01) == 0x01);
 bytes1 flags = 0x05;
 require((flags & 0x01) == 0x01);
 
-// Note: shift operators << >> work on BOTH int and bytes
+// Note: shift operators << >> and bitwise NOT ~ require May 2026 network upgrade
 ```
 
 ### Array Bounds
@@ -600,6 +600,7 @@ if (tx.outputs.length > 8) {
 - NFT commitment: 128 bytes (currently 40 bytes)
 - P2S (Pay to Script) becomes standard
 - 10,000 bytes unlocking bytecode limit
+- New opcodes: `<<` `>>` on `int` and `bytes`, `~` on `bytes`
 
 ---
 

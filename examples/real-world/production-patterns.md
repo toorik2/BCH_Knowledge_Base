@@ -16,8 +16,8 @@ This document showcases production-ready CashScript patterns used in real Bitcoi
 pragma cashscript ^0.13.0;
 
 contract SimpleAMM(
-    bytes32 tokenACategory,
-    bytes32 tokenBCategory,
+    bytes32 tokenACategory,  // NOTE: bytes32 comparison only matches FTs/immutable NFTs
+    bytes32 tokenBCategory,  // For mutable/minting NFTs, compare with categoryId + 0x01/0x02
     int feeRate,  // in basis points (100 = 1%)
     pubkey operator
 ) {
@@ -68,7 +68,7 @@ pragma cashscript ^0.13.0;
 contract LendingPool(
     bytes32 collateralTokenCategory,
     bytes32 loanTokenCategory,
-    int collateralRatio,  // e.g., 150 for 150%
+    int minCollateralRatio,  // e.g., 150 for 150%
     int liquidationThreshold,  // e.g., 120 for 120%
     pubkey oracle
 ) {
@@ -88,7 +88,7 @@ contract LendingPool(
         require(tx.inputs[0].tokenAmount >= collateralAmount);
 
         // Calculate required collateral
-        int requiredCollateral = (loanAmount * collateralRatio) / currentPrice;
+        int requiredCollateral = (loanAmount * minCollateralRatio) / currentPrice;
         require(collateralAmount >= requiredCollateral);
         
         // Validate loan output
@@ -113,8 +113,8 @@ contract LendingPool(
 
         // Check liquidation threshold
         int collateralValue = collateralAmount * currentPrice;
-        int collateralRatio = (collateralValue * 100) / debtAmount;
-        require(collateralRatio <= liquidationThreshold);
+        int currentRatio = (collateralValue * 100) / debtAmount;
+        require(currentRatio <= liquidationThreshold);
         
         // Process liquidation
         require(tx.outputs[0].tokenCategory == collateralTokenCategory);
@@ -441,7 +441,7 @@ contract PriceFeedOracle(
         require(oracleSeq > int(contractSeqBytes));
 
         // Update state: identifier + new sequence + new price
-        bytes9 newPriceState = 0x00 + oracleSeqBytes + bytes4(oraclePriceBytes);
+        bytes9 newPriceState = 0x00 + oracleSeqBytes + unsafe_bytes4(oraclePriceBytes);
         require(tx.outputs[0].nftCommitment == newPriceState);
     }
 
@@ -702,10 +702,11 @@ describe('Production Contract Tests', () => {
         it('should prevent unauthorized access', async () => {
             const maliciousSig = new SignatureTemplate(randomPrivateKey);
             const utxos = await contract.getUtxos();
+            const contractUtxo = utxos[0];
 
             await expect(
                 new TransactionBuilder({ provider })
-                    .addInput(utxos[0], contract.unlock.spend(maliciousSig))
+                    .addInput(contractUtxo, contract.unlock.spend(maliciousSig))
                     .addOutput({ to: testAddress, amount: 1000n })
                     .send()
             ).rejects.toThrow();
@@ -715,9 +716,10 @@ describe('Production Contract Tests', () => {
     describe('Integration Tests', () => {
         it('should handle complex multi-output transactions', async () => {
             const utxos = await contract.getUtxos();
+            const contractUtxo = utxos[0];
 
             const txDetails = await new TransactionBuilder({ provider })
-                .addInput(utxos[0], contract.unlock.multiOutput(sigTemplate))
+                .addInput(contractUtxo, contract.unlock.multiOutput(sigTemplate))
                 .addOutput({ to: address1, amount: 1000n })
                 .addOutput({ to: address2, amount: 2000n })
                 .addOutput({ to: address3, amount: 3000n })
@@ -731,10 +733,11 @@ describe('Production Contract Tests', () => {
     describe('Performance Tests', () => {
         it('should complete transactions within time limit', async () => {
             const utxos = await contract.getUtxos();
+            const contractUtxo = utxos[0];
             const startTime = Date.now();
 
             const txDetails = await new TransactionBuilder({ provider })
-                .addInput(utxos[0], contract.unlock.spend(sigTemplate))
+                .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
                 .addOutput({ to: testAddress, amount: 1000n })
                 .send();
 

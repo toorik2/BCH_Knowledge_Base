@@ -95,11 +95,12 @@ Don't pass separate arguments. See cashscript.org/docs/sdk/transaction-builder#a
 ### Creating CashTokens with SDK
 **Q**: How do I create CashTokens using the SDK?
 
-**A**: Use the advanced transaction builder with the `token` parameter:
+**A**: Use the `TransactionBuilder` with the `token` parameter:
 ```javascript
-const txDetails = await contract.functions
-    .transfer(sigTemplate)
-    .to({
+const contractUtxos = await contract.getUtxos();
+const txDetails = await new TransactionBuilder({ provider })
+    .addInput(contractUtxos[0], contract.unlock.transfer(sigTemplate))
+    .addOutput({
         to: contract.tokenAddress,
         amount: 1000n,
         token: {

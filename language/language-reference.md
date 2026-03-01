@@ -5,13 +5,13 @@
 | Type | Operations | Methods | Conversions | Size | Constraints |
 |------|-----------|---------|-------------|------|-------------|
 | `bool` | `! && || == !=` | - | `int(bool)` | 1 bit | - |
-| `int` | `+ - * / % << >> < <= > >= == !=` | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` | Variable | Integer-only, div/0 fails, underscores OK: `1_000_000`, scientific: `1e6` |
+| `int` | `+ - * / % < <= > >= == !=` `<< >>` (May 2026) | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` | Variable | Integer-only, div/0 fails, underscores OK: `1_000_000`, scientific: `1e6` |
 | `string` | `+ == !=` | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | `bytes(string)` | Variable | UTF-8 encoded |
-| `bytes` | `+ == != & | ^ << >> ~` | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | Variable | Hex: `0x1234abcd` |
+| `bytes` | `+ == != & | ^` `<< >> ~` (May 2026) | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | Variable | Hex: `0x1234abcd` |
 | `bytesN` | Same as bytes | Same as bytes | `unsafe_bytesN(bytes)` | N bytes (1-64) | Fixed length, N=1-64, `byte` alias for `bytes1` |
 | `pubkey` | `== !=` | - | Auto to bytes | 33 bytes | Bitcoin public key |
-| `sig` | `== !=` | - | Auto to bytes | ~65 bytes | Transaction signature |
-| `datasig` | `== !=` | - | Auto to bytes | ~64 bytes | Data signature |
+| `sig` | `== !=` | - | Auto to bytes | 65 (Schnorr) or 71-73 (ECDSA) bytes | Transaction signature + hashtype |
+| `datasig` | `== !=` | - | Auto to bytes | 64 (Schnorr) or 70-72 (ECDSA) bytes | Data signature (no hashtype) |
 
 **Common bytesN**: `bytes1` (byte), `bytes4` (prefix), `bytes20` (hash160), `bytes32` (sha256), `bytes64` (signature)
 
@@ -148,7 +148,7 @@ The `toPaddedBytes(value, size)` function replaces all `bytesN(int)` encoding pa
 - `new LockingBytecodeP2PKH(bytes20 pkHash)` - Pay to public key hash
 - `new LockingBytecodeP2SH20(bytes20 scriptHash)` - Pay to script hash (20-byte)
 - `new LockingBytecodeP2SH32(bytes32 scriptHash)` - Pay to script hash (32-byte)
-- `new LockingBytecodeNullData(bytes[] chunks)` - OP_RETURN data output
+- `new LockingBytecodeNullData([chunk1, chunk2, ...])` - OP_RETURN data output (inline array literal)
 
 ### CRITICAL: P2SH32 Address Type (HARDCODED CONTRACT ADDRESSES)
 
@@ -218,8 +218,8 @@ Critical when minting NFTs exist - without this check, minting capability allows
 **CRITICAL**: BCH has no global state. Store data in NFT commitments (local transferrable state).
 
 **Size limits**:
-- 40 bytes (current)
-- 128 bytes
+- 40 bytes (current standard limit)
+- 128 bytes (May 2026 upgrade)
 
 **Pattern**: Contract introspects input commitment, enforces output commitment with updated state.
 ```cashscript
@@ -278,7 +278,7 @@ function update(string newMessage) { message = newMessage; }
 →
 ```cashscript
 // CashScript (UTXO model - enforce recreation)
-contract Message(bytes message) {
+contract Message(bytes message, pubkey owner) {
     function update(bytes newMessage, sig ownerSig) {
         require(checkSig(ownerSig, owner));
         // Enforce output creates NEW contract instance
@@ -362,12 +362,12 @@ require(tx.outputs[0].nftCommitment == toPaddedBytes(newFee, 2) + existingTail);
 [prefix(31) + pledgeID(4) + campaignID(5)]                  // Campaign state
 ```
 
-**Byte-size reference**:
-- `bytes2` = 0-65535 (sufficient for block counts, small fees)
-- `bytes4` = 0-4,294,967,295 (timestamps, larger values)
-- `bytes5` = 0-1,099,511,627,775 (5-byte IDs, up to ~1 trillion)
-- `bytes6` = 0-281,474,976,710,655 (6-byte amounts)
-- `bytes8` = int max range (Script Number limit)
+**Byte-size reference** (unsigned byte capacity; if cast to `int`, MSB is sign bit — see Script Number Encoding above):
+- `bytes2` = 0-65,535 unsigned, 0-32,767 as int (block counts, small fees)
+- `bytes4` = 0-4,294,967,295 unsigned, 0-2,147,483,647 as int (timestamps)
+- `bytes5` = up to ~1 trillion unsigned (5-byte IDs)
+- `bytes6` = up to ~281 trillion unsigned (6-byte amounts)
+- `bytes8` = int max range (Script Number encoding)
 - `bytes20` = pubkeyhash (P2PKH address)
 - `bytes32` = token category ID, hashes
 

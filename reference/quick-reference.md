@@ -33,7 +33,7 @@ contract ContractName(Type param1, Type param2) {
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `<`, `<=`, `>`, `>=`, `==`, `!=` |
 | Logical | `!`, `&&`, `||` |
-| Bitwise | `&`, `|`, `^`, `~`, `<<`, `>>` |
+| Bitwise | `&`, `|`, `^` (current); `~`, `<<`, `>>` (May 2026) |
 
 ### Built-in Functions
 
@@ -57,7 +57,7 @@ hash256(any x) -> bytes32
 #### Signature Functions
 ```cashscript
 checkSig(sig s, pubkey pk) -> bool
-checkMultiSig(sig[] sigs, pubkey[] pks) -> bool
+checkMultiSig([sig, sig, ...], [pubkey, pubkey, ...]) -> bool  // inline array literals only
 checkDataSig(datasig s, bytes msg, pubkey pk) -> bool
 ```
 
@@ -98,7 +98,7 @@ this.activeBytecode     // Current input bytecode
 new LockingBytecodeP2PKH(bytes20 pkHash)
 new LockingBytecodeP2SH20(bytes20 scriptHash)
 new LockingBytecodeP2SH32(bytes32 scriptHash)
-new LockingBytecodeNullData(bytes[] chunks)
+new LockingBytecodeNullData([chunk1, chunk2, ...])  // inline array literal
 ```
 
 ### Units
@@ -361,9 +361,13 @@ new ElectrumNetworkProvider('mainnet', { hostname: 'server.example.com' })
 ## Version Compatibility
 
 ### CashScript Versions
-- `^0.12.1` - Latest stable
-- `>=0.10.0` - Minimum supported
-- `^0.8.0` - Legacy support
+- `^0.13.0` - Next (May 2026, beta): loops, shift/`~` operators, `unsafe_` casts, `toPaddedBytes`, P2S
+- `^0.12.0` - Latest stable: removed old `contract.functions` builder
+- `^0.11.0` - BCH 2025 upgrade support, debug tooling on optimised bytecode
+- `^0.10.0` - `MockNetworkProvider`, `console.log()`, Jest utilities
+- `^0.9.0` - `TransactionBuilder` for multi-contract transactions
+- `^0.8.0` - CashTokens (`tokenCategory`, `nftCommitment`, `tokenAmount`), P2SH32
+- `^0.7.0` - Native introspection (`tx.inputs[]`, `tx.outputs[]`)
 
 ### Pragma Directive
 ```cashscript

@@ -36,7 +36,7 @@ contract InputValidation(pubkey owner) {
         
         // Validate amount
         require(amount > 0);
-        require(amount <= 100000000);  // Max 1 BCH
+        require(amount <= 100_000_000);  // Max 1 BCH
         
         // Validate data
         require(data.length > 0);
@@ -270,38 +270,52 @@ contract OutputValidator(bytes20 authorizedRecipient, pubkey owner) {
 ### 2. Input Validation
 
 ```cashscript
-contract InputValidator(pubkey owner) {
+contract InputValidator(bytes32 expectedTokenCategory, pubkey owner) {
     function spend(sig ownerSig) {
         require(checkSig(ownerSig, owner));
-        
-        // Validate input count
-        require(tx.inputs.length >= 1);
-        require(tx.inputs.length <= 10);  // Reasonable limit
-        
-        // Validate input values
-        int totalInput = 0;
-        for (int i = 0; i < tx.inputs.length; i = i + 1) {
-            require(tx.inputs[i].value > 0);
-            totalInput = totalInput + tx.inputs[i].value;
-        }
-        
-        // Ensure sufficient input value
-        require(totalInput >= 1000);
+
+        // Pin own position
+        require(this.activeInputIndex == 0);
+
+        // Authenticate co-signer at input 1 by token category
+        require(tx.inputs[1].tokenCategory == expectedTokenCategory + 0x01);
+
+        // Limit total inputs to prevent unexpected co-spends
+        require(tx.inputs.length <= 3);
     }
 }
 ```
 
 ### 3. Fee Validation
 
+**Fixed input/output count:**
+
 ```cashscript
-contract FeeValidator(pubkey owner) {
+contract SimpleFeeValidator(pubkey owner) {
     function spend(sig ownerSig) {
         require(checkSig(ownerSig, owner));
-        
-        // Calculate total input and output values
+
+        // 1-in, 1-out: fee is the difference
+        int fee = tx.inputs[this.activeInputIndex].value - tx.outputs[0].value;
+        require(fee >= 1000);
+        require(fee <= 100_000);
+    }
+}
+```
+
+**Dynamic input/output counts with loops (v0.13.0+ / May 2026):**
+
+```cashscript
+contract DynamicFeeValidator(pubkey owner) {
+    function spend(sig ownerSig) {
+        require(checkSig(ownerSig, owner));
+
+        require(tx.inputs.length <= 10);
+        require(tx.outputs.length <= 10);
+
         int totalInput = 0;
         int totalOutput = 0;
-        
+
         for (int i = 0; i < tx.inputs.length; i = i + 1) {
             totalInput = totalInput + tx.inputs[i].value;
         }
@@ -309,11 +323,10 @@ contract FeeValidator(pubkey owner) {
         for (int i = 0; i < tx.outputs.length; i = i + 1) {
             totalOutput = totalOutput + tx.outputs[i].value;
         }
-        
-        // Validate reasonable fee
+
         int fee = totalInput - totalOutput;
-        require(fee >= 1000);     // Minimum fee
-        require(fee <= 100000);   // Maximum fee (prevent fee attacks)
+        require(fee >= 1000);
+        require(fee <= 100_000);
     }
 }
 ```
@@ -382,14 +395,19 @@ contract KeyValidator() {
 ```cashscript
 contract TokenValidator(bytes32 authorizedCategory) {
     function validateToken() {
-        // Validate token category
+        // tokenCategory returns 32 bytes for FTs/immutable NFTs,
+        // 33 bytes for mutable (+ 0x01) or minting (+ 0x02).
+        // For FT-only validation, direct bytes32 comparison works:
         require(tx.outputs[0].tokenCategory == authorizedCategory);
         
+        // For mutable NFT validation, append capability byte:
+        // require(tx.outputs[0].tokenCategory == authorizedCategory + 0x01);
+
         // Validate token amount
         require(tx.outputs[0].tokenAmount > 0);
         
         // Prevent token overflow
-        require(tx.outputs[0].tokenAmount <= 18446744073709551615);  // Max uint64
+        require(tx.outputs[0].tokenAmount <= 9_223_372_036_854_775_807);  // Max VM number
     }
 }
 ```
@@ -399,8 +417,8 @@ contract TokenValidator(bytes32 authorizedCategory) {
 ```cashscript
 contract NFTValidator(bytes32 authorizedCategory) {
     function validateNFT(bytes expectedCommitment) {
-        // Validate NFT category
-        require(tx.outputs[0].tokenCategory == authorizedCategory);
+        // Validate NFT category (mutable NFT — append 0x01)
+        require(tx.outputs[0].tokenCategory == authorizedCategory + 0x01);
         
         // Validate NFT commitment
         require(tx.outputs[0].nftCommitment == expectedCommitment);
@@ -412,9 +430,11 @@ contract NFTValidator(bytes32 authorizedCategory) {
 
 ## Bitwise Operation Security
 
-### 1. Shift Amount Validation
+### 1. Shift Amount Validation (May 2026 upgrade)
 
 **Risk**: Invalid shift amounts causing unexpected results.
+
+**Note**: Shift operators (`<<`, `>>`) and bitwise NOT (`~`) require the May 2026 network upgrade.
 
 **Secure Pattern**:
 ```cashscript
@@ -493,28 +513,34 @@ contract FlagValidator(bytes1 requiredFlags) {
 ```javascript
 describe('Contract Security Tests', () => {
     it('should reject negative amounts', async () => {
+        const utxos = await contract.getUtxos();
+        const contractUtxo = utxos[0];
         await expect(
-            contract.functions
-                .spend(sigTemplate, -1)
-                .to(address, 1000n)
+            new TransactionBuilder({ provider })
+                .addInput(contractUtxo, contract.unlock.spend(sigTemplate, -1))
+                .addOutput({ to: address, amount: 1000n })
                 .send()
         ).rejects.toThrow();
     });
-    
+
     it('should reject zero amounts', async () => {
+        const utxos = await contract.getUtxos();
+        const contractUtxo = utxos[0];
         await expect(
-            contract.functions
-                .spend(sigTemplate, 0)
-                .to(address, 1000n)
+            new TransactionBuilder({ provider })
+                .addInput(contractUtxo, contract.unlock.spend(sigTemplate, 0))
+                .addOutput({ to: address, amount: 1000n })
                 .send()
         ).rejects.toThrow();
     });
-    
+
     it('should reject excessive amounts', async () => {
+        const utxos = await contract.getUtxos();
+        const contractUtxo = utxos[0];
         await expect(
-            contract.functions
-                .spend(sigTemplate, 2100000000000000n)  // > 21M BCH
-                .to(address, 1000n)
+            new TransactionBuilder({ provider })
+                .addInput(contractUtxo, contract.unlock.spend(sigTemplate, 2_100_000_000_000_000n))
+                .addOutput({ to: address, amount: 1000n })
                 .send()
         ).rejects.toThrow();
     });
@@ -526,19 +552,18 @@ describe('Contract Security Tests', () => {
 ```javascript
 describe('Attack Vector Tests', () => {
     it('should prevent signature replay', async () => {
+        const utxos = await contract.getUtxos();
+        const contractUtxo = utxos[0];
         // Create valid transaction
-        const txDetails = await contract.functions
-            .spend(sigTemplate)
-            .to(address, 1000n)
+        const txDetails = await new TransactionBuilder({ provider })
+            .addInput(contractUtxo, contract.unlock.spend(sigTemplate))
+            .addOutput({ to: address, amount: 1000n })
             .send();
-        
-        // Attempt to replay same signature
-        await expect(
-            contract.functions
-                .spend(sigTemplate)  // Same signature
-                .to(address, 1000n)
-                .send()
-        ).rejects.toThrow();
+
+        // Attempt to replay — UTXO is consumed, so no valid input exists
+        const utxos2 = await contract.getUtxos();
+        // The spent UTXO is no longer available
+        expect(utxos2.find(u => u.txid === contractUtxo.txid)).toBeUndefined();
     });
 });
 ```
@@ -562,7 +587,7 @@ describe('Attack Vector Tests', () => {
 - [ ] Boundary conditions tested
 - [ ] Attack vectors simulated
 - [ ] Integration tests with real transactions
-- [ ] Gas/fee optimization verified
+- [ ] Fee optimization verified (fees are based on transaction byte size)
 - [ ] Multi-signature scenarios tested
 
 ### Production
@@ -604,8 +629,10 @@ async function emergencyPause(contract, adminKey) {
     const adminSig = new SignatureTemplate(adminKey);
     
     try {
-        const txDetails = await contract.functions
-            .emergencyPause(adminSig)
+        const utxos = await contract.getUtxos();
+        const contractUtxo = utxos[0];
+        const txDetails = await new TransactionBuilder({ provider })
+            .addInput(contractUtxo, contract.unlock.emergencyPause(adminSig))
             .send();
         
         console.log('Emergency pause activated:', txDetails.txid);

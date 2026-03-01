@@ -16,7 +16,7 @@
 | **Arrays** | Limited (multiple UTXOs or covenant chains) | Native arrays, mappings |
 | **Tokens** | Native CashTokens (FT/NFT) | ERC-20/721 contract standards |
 | **Inter-Contract** | Via multi-input transactions | `call`, `delegatecall`, `staticcall` |
-| **Loops** | `do {} while()` (v0.13.0+, beta) | `for`, `while`, `do while` |
+| **Loops** | `for`, `while`, `do {} while()` (v0.13.0+, May 2026) | `for`, `while`, `do while` |
 | **Signatures** | Explicit `checkSig(sig, pk)` | Implicit `msg.sender` recovery |
 | **Time** | `tx.time` (block height or Unix timestamp) | `block.timestamp`, `block.number` |
 
@@ -60,7 +60,7 @@ this.age                          // int: nSequence relative timelock (blocks on
 new LockingBytecodeP2PKH(bytes20 pkHash)           // Standard payment
 new LockingBytecodeP2SH20(bytes20 scriptHash)      // Legacy (less secure)
 new LockingBytecodeP2SH32(bytes32 scriptHash)      // Default (more secure)
-new LockingBytecodeNullData(bytes[] chunks)        // OP_RETURN (223 bytes total/tx)
+new LockingBytecodeNullData([chunk1, chunk2, ...])  // OP_RETURN (inline array literal, 223 bytes total/tx)
 ```
 
 ### Timelock Semantics
@@ -87,7 +87,7 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 | `payable` keyword | No keyword | All functions can handle value |
 | `emit Event(data)` | UTXO change is implicit event; OP_RETURN optional | Transaction IS the event. OP_RETURN only for extra off-chain metadata |
 | `modifier onlyOwner` | `require(checkSig(s, pk));` | No native modifiers, inline checks |
-| `for(uint i=0; i<n; i++)` | `do { i=i+1; } while(i<n)` | Beta in v0.13.0, body executes first |
+| `for(uint i=0; i<n; i++)` | `for (int i = 0; i < n; i = i + 1) { }` | v0.13.0+ (May 2026). No `i++` or `i += 1` |
 | Reentrancy guard | N/A | No reentrancy in UTXO model |
 | `storage[]` arrays | Multiple UTXOs or covenant | No storage arrays, separate UTXOs |
 | ERC-20 | CashTokens fungible | Native: `tokenAmount`, `tokenCategory` |
@@ -251,8 +251,8 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 | `bytes` | Variable | Arbitrary byte sequence | `.split()`, `.slice()`, `.length`, `.reverse()`, `&`, `\|`, `^` | N/A |
 | `bytes1` to `bytes64` | Fixed (N) | Fixed-length byte sequence | Same as `bytes` | `bytes` |
 | `pubkey` | 33 bytes | Compressed public key | Used in `checkSig`, `checkMultiSig` | `bytes` |
-| `sig` | 64-65 bytes | Schnorr signature | Used in `checkSig`, `checkMultiSig` | `bytes` |
-| `datasig` | 64-65 bytes | Data signature | Used in `checkDataSig` | `bytes` |
+| `sig` | 65 (Schnorr) or 71-73 (ECDSA) bytes | Transaction signature + hashtype | Used in `checkSig`, `checkMultiSig` | `bytes` |
+| `datasig` | 64 (Schnorr) or 70-72 (ECDSA) bytes | Data signature (no hashtype) | Used in `checkDataSig` | `bytes` |
 
 ### Type Constraints
 - All variables explicitly typed (no `var`)
@@ -269,7 +269,7 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 | Arithmetic | `+`, `-`, `*`, `/`, `%` | Integer only, division truncates |
 | Comparison | `<`, `<=`, `>`, `>=`, `==`, `!=` | All types |
 | Logical | `!`, `&&`, `\|\|` | No short-circuit evaluation |
-| Bitwise | `&`, `\|`, `^` | `bytes` only - NOT supported on `int`. No `~`, `<<`, `>>` |
+| Bitwise | `&`, `\|`, `^` | `bytes` only. `~`, `<<`, `>>` added in May 2026 upgrade |
 | Assignment | `=` | No compound (`+=`, `-=`, etc.) |
 
 ### Units
@@ -303,7 +303,7 @@ require(this.age >= blocks);       // Blocks only (SDK limitation, not 512-sec c
 | `hash160()` | `hash160(bytes data)` | `bytes20` | SHA-256 then RIPEMD-160 |
 | `hash256()` | `hash256(bytes data)` | `bytes32` | Double SHA-256 |
 | `checkSig()` | `checkSig(sig s, pubkey pk)` | `bool` | Verify signature |
-| `checkMultiSig()` | `checkMultiSig(sig[] sigs, pubkey[] pks)` | `bool` | NOT supported in SDK |
+| `checkMultiSig()` | `checkMultiSig([sig, ...], [pubkey, ...])` | `bool` | Inline array literals only. NOT supported in SDK |
 | `checkDataSig()` | `checkDataSig(datasig s, bytes msg, pubkey pk)` | `bool` | Verify data signature |
 | `bytes()` | `bytes(T data)` | `bytes` | Convert to bytes |
 
@@ -475,12 +475,14 @@ contract UserBalance(bytes32 tokenCategory) {
 
 | Solidity Feature | Why Impossible | Alternative |
 |-----------------|----------------|-------------|
-| Dynamic arrays | No loops over arbitrary length | Fixed-size structures |
+| Dynamic arrays | No array types | Fixed-size structures |
 | Unbounded mappings | No iteration | Split into multiple UTXOs |
 | Reentrancy guards | No reentrancy possible | Not needed (UTXO consumed) |
 | `msg.sender` as trust | No inherent sender identity | Signature verification |
 | Contract creation | Cannot spawn contracts | Pre-deploy all contracts |
 | `selfdestruct` | Contracts are UTXOs | Simply don't replicate |
+
+Note: BCH adds `OP_DEFINE`/`OP_INVOKE` in May 2026, enabling reusable bytecode functions at the VM level. CashScript does not yet support these opcodes.
 
 ### Best Practice: Design First, Code Second
 
