@@ -159,6 +159,25 @@ Every artifact JSON emitted by `cashc` v0.13+ contains a top-level `fingerprint`
 
 The fingerprint is a deterministic function of the bytecode only — it does NOT cover the source code, comments, or compiler metadata. Two semantically-identical contracts written differently will have different bytecode and thus different fingerprints.
 
+### BCH_2026_05 VM upgrade — what activated on 2026-05-15
+
+The May-2026 BCH network upgrade ("`BCH_2026_05`" in cashscript) is live on chipnet (activated ~2025-11-15, six months ahead of mainnet) and on mainnet (activated 2026-05-15). Contracts compiled with `cashscript@>=0.13.0-next.7` target this VM by default. The relevant VM flag in BCHN is `SCRIPT_ENABLE_MAY2026` (bit 30). Summary of what this upgrade enables, with KB section anchors:
+
+| Feature | Underlying CHIP / opcodes | Where to look |
+|---|---|---|
+| **NFT commitment size**: 40 B → **128 B** | CHIP-2024-12-VM-Limits | "NFT COMMITMENT DATA STORAGE" |
+| **Bitwise shifts** (`<<`, `>>`) and **invert** (`~`) on bytes / int | OP_LSHIFTBIN, OP_RSHIFTBIN, OP_INVERT | OPERATORS table, "Bitwise Operations" |
+| **Runtime loops**: `for`, `while`, `do-while` | OP_BEGIN, OP_UNTIL (CHIP-2024-12-Loops) | "Control Flow: Loops" |
+| **Pay-to-Script semantics** | CHIP-2024-12-P2S | (architectural — affects deploy patterns) |
+| Faster block target | CHIP-2025-03-Faster-Blocks (separate from VM) | (consensus, not script semantics) |
+
+**Already active from the May-2025 upgrade** (CHIP-2021-05-vmlimits — "VM Limits"):
+- Stack element limit: **10,000 bytes** (was 520)
+- 201-opcode limit: REMOVED, replaced by per-input operation-cost budget = `(41 + unlocking_bytecode_length) × 800`
+- BigInt arithmetic enabled
+
+When designing covenants, treat `BCH_2026_05` features as available on chipnet today. If a covenant must remain deployable on a node that has NOT activated the upgrade, restrict yourself to the May-2025 feature set (no loops, no shifts, no invert, 40-byte commitments).
+
 ## FUNCTION REFERENCE
 
 | Function | Signature | Returns | Notes |
@@ -1366,10 +1385,10 @@ contract MasterReference() {
 - `checkMultiSig`: NOT supported in TypeScript SDK (compile-time only)
 - NFT commitment: max 128 bytes
 - String/bytes operations: `.split(index)` returns tuple, requires destructuring
-- Bitwise operators: `&`, `|`, `^`, `~` on bytes; `<<`, `>>` on both bytes and int
-- Loops: `do {} while ()` syntax, beta in CashScript 0.13.0. Body executes at least once
+- Bitwise operators: `&`, `|`, `^` on bytes (any VM); `~` on bytes and `<<`/`>>` on both bytes and int require `BCH_2026_05` VM (active on chipnet since 2026-05-15)
+- Loops: `for`, `while`, `do {} while ()` — all three forms work in cashscript v0.13+ and require the `BCH_2026_05` VM (runtime opcodes OP_BEGIN / OP_UNTIL). See "Control Flow: Loops" section for syntax + caveats. No `break` / `continue`.
 - Token category byte order: Returned in unreversed order
-- Compound assignment: NOT supported (`+=`, `-=`, etc.)
+- Compound assignment: `+=` / `-=` supported in cashscript v0.13+ (sugar for `x = x + y` / `x = x - y`). Increment / decrement: `++` and `--` (postfix and prefix) supported in v0.13+.
 
 ### Best Practices for AI Agents
 - **DATA STORAGE**: Use NFT commitments for persistent state, NOT OP_RETURN (which is unspendable)
