@@ -5,9 +5,9 @@
 | Type | Operations | Methods | Conversions | Size | Constraints |
 |------|-----------|---------|-------------|------|-------------|
 | `bool` | `! && || == !=` | - | `int(bool)` | 1 bit | - |
-| `int` | `+ - * / % < <= > >= == !=` `<< >>` (May 2026) | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` | Variable | Integer-only, div/0 fails, underscores OK: `1_000_000`, scientific: `1e6` |
+| `int` | `+ - * / % < <= > >= == != ++ -- += -=` `<< >>` (v0.13+) | - | `bytes(int)` `bool(int)` `toPaddedBytes(int, N)` `unsafe_int(bytes)` (v0.13+) | Variable | Integer-only, div/0 fails, underscores OK: `1_000_000`, scientific: `1e6` |
 | `string` | `+ == !=` | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | `bytes(string)` | Variable | UTF-8 encoded |
-| `bytes` | `+ == != & | ^` `<< >> ~` (May 2026) | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | Variable | Hex: `0x1234abcd` |
+| `bytes` | `+ == != & | ^` `<< >> ~` (v0.13+) | `.length` `.reverse()` `.split(i)` `.slice(start,end)` | Variable | Hex: `0x1234abcd` |
 | `bytesN` | Same as bytes | Same as bytes | `unsafe_bytesN(bytes)` | N bytes (1-64) | Fixed length, N=1-64, `byte` alias for `bytes1` |
 | `pubkey` | `== !=` | - | Auto to bytes | 33 bytes | Bitcoin public key |
 | `sig` | `== !=` | - | Auto to bytes | 65 (Schnorr) or 71-73 (ECDSA) bytes | Transaction signature + hashtype |
@@ -91,6 +91,74 @@ New casts added in v0.13:
 
 The `toPaddedBytes(value, size)` function replaces all `bytesN(int)` encoding patterns. The size parameter can be any integer, not just powers of 2.
 
+### v0.13: Auto-injected `tx.time >= tx.locktime` guard (BREAKING)
+
+In CashScript v0.13, any function that references `tx.locktime` gets a **compiler-injected** `require(tx.time >= tx.locktime)` prepended to its body — unless the function already contains a `tx.time` check that visibly satisfies it.
+
+This closes a long-standing footgun where `tx.locktime` could be set by the spender to an arbitrary value (any time before MTP) without the script asserting the underlying transaction was actually locktime-gated. The guard forces the spending tx to be a real BIP-65 locktime-enabled transaction.
+
+**Disable via compiler option** `enforceLocktimeGuard: false` or CLI `--skip-enforce-locktime-guard`. Reasons you might disable:
+- You're using `tx.locktime` only for non-time purposes (e.g., as a freshness-anchor for a notary signature where the script does NOT itself want to gate confirmation).
+- You're emitting a separate, explicit `require(tx.time >= ...)` check elsewhere with custom bounds.
+
+**The guard is checked first**, before any of your function body. If `nSequence` is set to `0xFFFFFFFF` on the spending input (making the tx "final" and locktime-irrelevant), the guard fails — the spending tx must have at least one non-final input.
+
+### v0.13: Strict function parameter type enforcement (BREAKING)
+
+In v0.12 and earlier, a parameter declared `bytes20 pkh` would accept any-length bytes at the unlock-script boundary without complaint. v0.13 strictly enforces bounded-bytes lengths AND boolean values:
+
+- **Bounded bytes** (`bytes1`..`bytes64`): unlock arg must be exactly N bytes; otherwise transaction fails before the function body runs.
+- **`bool`**: unlock arg must be a script-number 0 or 1; non-canonical truthy values (e.g. `0x02`) are rejected.
+
+**Disable via** `enforceFunctionParameterTypes: false` / `--skip-enforce-function-parameter-types`. Almost no real-world contract should disable this — the strict enforcement closes the same class of bug as Bitcoin Script's "minimal push" rule.
+
+**Migration**: existing contracts compiled under v0.12 may need to widen specific parameter types from `bytes20` to `bytes` (and add an explicit length check in the body) if the unlock arg's length was variable. Most production contracts won't need changes.
+
+### v0.13: Bytes type narrowing after length check
+
+When you write `require(x.length == N)` (or a length-equality check inside an `if`), the compiler **narrows the static type** of `x` from unbounded `bytes` to `bytesN` for the remainder of the lexical scope. This lets subsequent `slice()` and `split()` calls return precisely-typed sub-bytes without needing `unsafe_bytesN()`.
+
+```cashscript
+// Before narrowing — split returns unbounded bytes
+function read(bytes blob) {
+    bytes2 sourceId = unsafe_bytes2(blob.split(2)[0]);   // had to be unsafe
+    bytes left = blob.split(2)[1];                        // also unbounded
+}
+
+// With narrowing (v0.13+) — no unsafe cast needed
+function read(bytes blob) {
+    require(blob.length == 51);            // narrows blob to bytes51
+    bytes2 sourceId = blob.split(2)[0];    // typed bytes2 directly
+    bytes49 rest    = blob.split(2)[1];    // typed bytes49 directly
+}
+```
+
+Narrowing applies to:
+- `require(x.length == LITERAL)` at any point in the function body.
+- The "then" branch of `if (x.length == LITERAL) { ... }`.
+- Length-equality is the only narrowing predicate; `>=`, `<=`, `>`, `<` do NOT narrow.
+
+The narrowing is purely compile-time — no runtime overhead beyond the `length` check you already wrote.
+
+### v0.13: `bool()` cast bugfix (BREAKING)
+
+In v0.12 and earlier, `bool(intVal)` was effectively a no-op — it changed the static type to `bool` but did not emit `OP_0NOTEQUAL` to normalise the value. So `bool(2)` left a `2` on the stack, which would behave as truthy in most contexts but compare unequal to `true` (which is `1`).
+
+v0.13 fixes this: `bool(intVal)` now emits `OP_0NOTEQUAL`, mapping any non-zero value to `1` (true) and `0` to `0` (false).
+
+**Migration**: any contract that previously relied on `bool(x) == true` succeeding only when `x == 1` should re-audit — under v0.13 it now succeeds when `x != 0`. Conversely, contracts that wanted no-op semantics should use `unsafe_bool(intVal)`.
+
+### v0.13: Artifact `fingerprint` field
+
+Every artifact JSON emitted by `cashc` v0.13+ contains a top-level `fingerprint` field — a sha256 digest computed over the contract's `bytecode` (the byte-code pattern, NOT including constructor argument pushes).
+
+**Purpose**: deterministic identification of compiled contract logic. Two artifacts with the same `fingerprint` share identical bytecode (and identical semantics modulo constructor args). Use cases:
+- Compare a deployed contract's bytecode against a known-good artifact without comparing the full hex blob.
+- Detect compiler regressions: if the same `.cash` source compiles to a different fingerprint across two `cashc` versions, the change is real (not just formatting).
+- Pin a "canonical implementation" in code that loads multiple artifact variants.
+
+The fingerprint is a deterministic function of the bytecode only — it does NOT cover the source code, comments, or compiler metadata. Two semantically-identical contracts written differently will have different bytecode and thus different fingerprints.
+
 ## FUNCTION REFERENCE
 
 | Function | Signature | Returns | Notes |
@@ -111,6 +179,7 @@ The `toPaddedBytes(value, size)` function replaces all `bytesN(int)` encoding pa
 | `toPaddedBytes` | `(int value, int length)` | `bytes` | Pads int to fixed-length bytes (NUM2BIN). v0.13+ |
 | `unsafe_bytesN` | `(bytes)` | `bytesN` | Semantic cast to bytesN. No length validation. v0.13+ |
 | `unsafe_bool` | `(int)` | `bool` | Semantic boolean cast without conversion. v0.13+ |
+| `unsafe_int` | `(bytes)` | `int` | Reinterprets bytes as int without `OP_BIN2NUM`. v0.13+ — see "Unsafe Casts" above |
 
 ## GLOBAL VARIABLES
 
@@ -960,9 +1029,11 @@ function anyFunction() {
 | Category | Operators | Valid Types | Notes |
 |----------|-----------|-------------|-------|
 | Arithmetic | `+ - * / %` | `int` | Integer only, div/0 fails |
+| Increment / decrement | `++ --` | `int` | Postfix and prefix forms (v0.13+) |
+| Compound assignment | `+= -=` | `int` | Sugar for `x = x + y` / `x = x - y` (v0.13+) |
 | Comparison | `< <= > >= == !=` | `int` `bool` `bytes` `string` | - |
 | Logical | `! && ||` | `bool` | NO short-circuit (all operands evaluated) |
-| Bitwise | `& | ^ ~ << >>` | `bytes`: all; `int`: `<< >>` only | AND, OR, XOR, invert, left/right shift |
+| Bitwise | `& | ^ ~ << >>` | `bytes`: all; `int`: `<< >>` only | AND, OR, XOR, invert, left/right shift. Shift + invert added in v0.13 (require BCH_2026_05 VM). |
 | Concatenation | `+` | `string` `bytes` | - |
 | Unary | `+ - !` | `int` `bool` | - |
 
@@ -1010,16 +1081,46 @@ bytes part1, bytes part2 = data.split(5);
 string s1, string s2 = text.split(10);
 ```
 
-### Control Flow: Loops
+### Control Flow: Loops (v0.13+, requires BCH_2026_05 VM)
+
+CashScript 0.13.0 adds three loop forms: `for`, `while`, `do-while`. All require the BCH_2026_05 VM upgrade (activated 2026-05-15) — earlier VMs reject the underlying opcodes.
+
 ```cashscript
-// do-while loop (CashScript 0.13.0+)
-int inputIndex = 0;
+// for loop
+for (int i = 0; i < tx.inputs.length; i = i + 1) {
+    require(tx.inputs[i].tokenCategory == 0x);
+}
+
+// while loop — condition checked before body
+int i = 0;
+while (i < tx.inputs.length) {
+    require(tx.inputs[i].tokenCategory == 0x);
+    i = i + 1;
+}
+
+// do-while loop — body executes first, then condition checked
+int j = 0;
 do {
-    require(tx.inputs[inputIndex].tokenCategory == 0x);
-    inputIndex = inputIndex + 1;
-} while (inputIndex < tx.inputs.length);
+    require(tx.inputs[j].tokenCategory == 0x);
+    j = j + 1;
+} while (j < tx.inputs.length);
 ```
-**Behavior**: Executes body first, then tests condition. Continues while condition is true. Beta feature in 0.13.0
+
+**Increment shortcuts also work in v0.13+:**
+```cashscript
+for (int i = 0; i < tx.outputs.length; i++) { ... }   // postfix
+for (int i = tx.inputs.length - 1; i >= 0; --i) { ... } // prefix
+int n = 0;
+while (n < 7) {
+    n += 1;   // compound assignment
+}
+```
+
+**Behavior + caveats:**
+- Loop body executes at runtime (not unrolled at compile time). Each iteration consumes per-input op-cost budget.
+- No explicit iteration cap — the script's op-cost / sigchecks budgets are the only stops.
+- `break` and `continue` are NOT supported. Exit conditions must live in the loop test or via `require()`.
+- The condition expression is re-evaluated each iteration; expensive condition expressions (e.g. `tx.inputs.length` accessed inside the test) are OK but cost per iteration.
 
 ### Bitwise Operations
 ```cashscript
