@@ -178,74 +178,62 @@ The May-2026 BCH network upgrade ("`BCH_2026_05`" in cashscript) is live on chip
 
 When designing covenants, treat `BCH_2026_05` features as available on chipnet today. If a covenant must remain deployable on a node that has NOT activated the upgrade, restrict yourself to the May-2025 feature set (no loops, no shifts, no invert, 40-byte commitments).
 
-## BYTE ORDER (Little-Endian vs Big-Endian) — FOOTGUN ZONE
+## ENDIANNESS
 
-BCH script operates **almost everywhere in little-endian**, but wallet/explorer UIs display **almost everywhere in big-endian**. This mismatch is the source of more "the script rejects my UTXO" bugs than any other cashscript pitfall. Read this section before writing any covenant that:
-- Compares token categories
-- Sorts publishers/keys by hash
-- Decodes outpoint txids
-- Constructs constants like u32 / u64 counters
+Inside `.cash` = LE. Wallet/explorer UI = BE. Bridge via `.reverse()`.
 
-### Script numbers are LE, sign-magnitude
+### Script-number (OP_BIN2NUM / `int(bytes)`)
 
-BCH "Script Number" encoding: bytes are **least-significant first**, with the **sign bit at the MSB of the LAST byte**. To negate a number, set the high bit of the last byte. This is what every arithmetic opcode and every `int(bytesVal)` cast produces and consumes.
+LE bytes, sign-magnitude, sign bit = MSB of LAST byte. `byte[0]` = LSB.
 
-```
-Encoding examples (cashscript hex literal → script-number value):
-  0x01                    → +1
-  0x81                    → -1
-  0x7f                    → +127  (max single-byte positive)
-  0x8000                  → +128  (needs 2 bytes; sign bit on last byte stays clear)
-  0x8080                  → -128
-  0xff                    → -127  (sign bit set on the single byte)
-  0xff7f                  → +32767
-  0xffff                  → -32767
-  0x0001                  → +256
-```
+| Literal | `int(...)` |
+|---|---|
+| `0x01` | 1 |
+| `0x81` | -1 |
+| `0x7f` | 127 |
+| `0xff` | -127 |
+| `0x8000` | 128 |
+| `0x8080` | -128 |
+| `0xff7f` | 32767 |
+| `0xffff` | -32767 |
+| `0x0001` | 256 |
+| `0x0100` | 1 (non-minimal — fails `requireMinimalEncoding`) |
 
-Counter-intuitively: `int(0x0100)` is `1` (non-minimal encoding of +1); `int(0x0001)` is `256`. The **first byte is the lowest place value**. If you came from Solidity / big-endian intuition, this will surprise you.
+### Encoding (`toPaddedBytes(n, N)` / OP_NUM2BIN)
 
-### `int(bytesVal)` reads LE; `toPaddedBytes(int, N)` writes LE
+Outputs N LE bytes, sign-extends, sign bit on byte[N-1].
 
-```cashscript
-int x = int(0x0100);                 // x = 1   (not 256)
-int y = int(0x0001);                 // y = 256
-bytes b = toPaddedBytes(256, 4);     // b = 0x00010000 (LE: low byte first)
-bytes c = toPaddedBytes(1, 4);       // c = 0x01000000 (LE)
-```
+| int | `bigIntToVmNumber` (canonical) |
+|---|---|
+| 1 | `0x01` |
+| -1 | `0x81` |
+| 128 | `0x8000` (2 B — single byte would set sign) |
+| 256 | `0x0001` |
+| -256 | `0x0081` |
+| 65535 | `0xffff00` (3 B — 2-byte form would set sign) |
 
-When writing **u32 / u64 counters in NFT commitments**: always think of byte[0] as the low byte. The on-chain commitment for `seq = 1` is `0x01000000`, not `0x00000001`. Any TypeScript test fixture writing `0x00000001` is encoding the seq as `16777216` (big-endian was applied by accident).
+`toPaddedBytes(n, N)` requires `N >= canonical_length(n)`; pads with zero bytes (or `0x80` if sign-extending negative).
 
-### Token category byte order: display ≠ on-chain
+### Token category
 
-Token category = `HASH256(genesis_outpoint)`. The hash function's raw output is the **on-chain** form. Wallets and explorers display the **reverse** of those bytes (Bitcoin's historical txid convention).
+| Context | Bytes |
+|---|---|
+| `HASH256(genesis_outpoint)` raw | on-chain LE |
+| `tx.inputs[i].tokenCategory` (script-side) | on-chain LE |
+| cashscript constructor `bytes32 cat` | passed verbatim (LE) |
+| cashscript `token.category` hex (UTXO + output) | passed verbatim (LE) |
+| wallet display / `getrawtransaction` txid | reversed (BE) |
 
-| Where | Byte order | Notation |
-|---|---|---|
-| `HASH256` raw output (on-chain category) | LE / unreversed | what `tx.inputs[i].tokenCategory` returns to the script |
-| Wallet display / explorer / BCH RPC `getrawtransaction` txid | BE / reversed | what users see |
-| `cashscript` constructor arg `bytes32 someCategory` | LE | passed verbatim into script bytecode |
-| `cashscript` UTXO `token.category` field (hex) | LE | serialized verbatim onto the wire |
+Convert display→on-chain: `hexToBin(displayTxid).reverse()`.
 
-If you derive a category from a **displayed txid**, you MUST reverse the bytes first. Example helper (see `cashlink/aggregator-v0/src/v7-helpers.ts`):
-
-```typescript
-const txidToCategoryLE = (txidHex: string): Uint8Array =>
-  hexToBin(txidHex).reverse();
-const categoryLEToTxidBE = (categoryLE: Uint8Array): string =>
-  binToHex(new Uint8Array(categoryLE).reverse());
-```
-
-**Test fixture footgun:** A synthetic non-palindromic 32-byte category will fail the script's category-equality check unless you derive it from a fake outpoint via `HASH256(...)`. To dodge this entirely in tests, use a **palindromic** fake category:
+**Test fixture:** synthetic categories MUST be palindromic OR derived via `HASH256(...)`. Non-palindromic synthetic fakes fail category-equality somewhere in the cashscript→libauth pipeline (empirically confirmed; root cause not pinned down).
 
 ```typescript
-// Palindromic synthetic category — reverse-invariant.
 const fakeCategory = (seed: number): Uint8Array => {
   const cat = new Uint8Array(32);
   for (let i = 0; i < 16; i++) {
     const b = (seed * 17 + i * 31) & 0xff;
-    cat[i] = b;
-    cat[31 - i] = b;
+    cat[i] = b; cat[31 - i] = b;
   }
   return cat;
 };
@@ -253,41 +241,23 @@ const fakeCategory = (seed: number): Uint8Array => {
 
 ### Outpoint txid
 
-`tx.inputs[i].outpointTransactionHash` returns the **on-chain** txid (LE). If your contract compares it to a hardcoded constant, that constant must be the **reversed** form of what the user sees in a wallet.
+`tx.inputs[i].outpointTransactionHash` = on-chain LE. Constants taken from a block explorer must be `.reverse()`'d before use.
 
-### Hash160 / Pubkey sort gotcha
+### Pubkey-hash sort
 
-To assert "this batch of N pubkey-hashes is distinct AND sorted," cashscript covenants commonly use:
-
-```cashscript
-if (i > 0) {
-    require(int(pkh + 0x00) > int(prevPkh + 0x00));
-}
-```
-
-The `+ 0x00` extends `pkh` (20 bytes) by one zero byte to **clear the sign bit** of the MSB-position (which is now the trailing `0x00`). Then `int(...)` reads the result as LE. This means:
-- `pkh[0]` is the LSB of the comparison
-- `pkh[19]` is the MSB of the comparison
-
-**To pre-sort the publisher fixtures in a test so the script accepts them**, sort by `pkh[19]` descending-then-ascending — i.e., compare from byte 19 down to byte 0, NOT byte 0 up to byte 19:
+`require(int(pkh + 0x00) > int(prevPkh + 0x00))` reads LE → `pkh[19]` = MSB, `pkh[0]` = LSB.
 
 ```typescript
+// Sort TS fixtures so script accepts them: MSB-first byte-by-byte.
 publishers.sort((a, b) => {
-  for (let i = 19; i >= 0; i--) {                 // ← MSB-first byte-by-byte
+  for (let i = 19; i >= 0; i--) {
     if (a.pkh[i] !== b.pkh[i]) return a.pkh[i] - b.pkh[i];
   }
   return 0;
 });
 ```
 
-A naive `for (let i = 0; i < 20; i++)` byte-by-byte comparison gives big-endian order, which produces a **different ordering** than the script's LE `int()` comparison. The script will reject your test fixture.
-
-### Rule of thumb
-
-- Anything **inside the cashscript file** (literals, slices, `int()` casts): assume LE.
-- Anything **the user sees in wallets / explorers** (txids, categories): assume BE.
-- When deriving an on-chain constant from a displayed value: **reverse**.
-- When constructing test fixtures: prefer palindromic / hash-derived values so byte order doesn't matter.
+Naive `for (i = 0; i < 20; i++)` (BE byte order) produces opposite order — script rejects.
 
 ## FUNCTION REFERENCE
 
