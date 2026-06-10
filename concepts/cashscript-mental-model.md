@@ -1,6 +1,6 @@
 # CashScript Mental Model for Production Systems
 
-A comprehensive framework for designing safe, production-ready CashScript contract systems. Derived from analysis of ParityUSD's 26-contract stablecoin system.
+A comprehensive framework for designing safe, production-ready CashScript contract systems. Derived from analysis of ParyonUSD's 26-contract stablecoin system.
 
 ---
 

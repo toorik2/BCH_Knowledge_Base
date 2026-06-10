@@ -1,14 +1,14 @@
-# ParityUSD Deep Analysis Report
+# ParyonUSD Deep Analysis Report
 ## CashScript Multi-Contract Patterns & Lessons Learned
 
 ---
 
 ## 1. SYSTEM ARCHITECTURE OVERVIEW
 
-ParityUSD is a production-grade stablecoin system with **26 CashScript contracts** organized into 4 domains:
+ParyonUSD is a production-grade stablecoin system with **26 CashScript contracts** organized into 4 domains:
 
 ```
-ParityUSD System (26 contracts)
+ParyonUSD System (26 contracts)
 ├── Loan Module (10 contracts)
 │   ├── Loan.cash (main state holder)
 │   ├── LoanSidecar.cash (token holder)
@@ -238,7 +238,7 @@ require(tx.inputs[4].tokenCategory == redeemerTokenId + 0x02);
 **Solution**: Send to OP_RETURN output.
 
 ```cashscript
-// From LiquidateLoan.cash - burning ParityUSD during liquidation
+// From LiquidateLoan.cash - burning ParyonUSD during liquidation
 require(tx.outputs[5].lockingBytecode == 0x6a); // OP_RETURN
 require(tx.outputs[5].tokenCategory == parityTokenId);
 require(tx.outputs[5].tokenAmount == burnAmount);
@@ -323,7 +323,7 @@ require(currentPeriod > storedPeriod);
 **Pattern**: All operations have minimum thresholds.
 
 ```cashscript
-// 100.00 ParityUSD minimum everywhere
+// 100.00 ParyonUSD minimum everywhere
 require(borrowAmount >= 100_00);
 require(redemptionAmount >= 100_00);
 require(depositAmount >= 100_00);
@@ -413,7 +413,7 @@ Every contract must explicitly check that outputs match expected:
 
 ## 5. ANTI-PLACEHOLDER LESSONS
 
-### Why ParityUSD Has No Placeholders
+### Why ParyonUSD Has No Placeholders
 
 1. **Every contract has REAL logic**: The simplest contract (LoanSidecar) still has meaningful validation - checking transaction hash and index relationships.
 
@@ -423,7 +423,7 @@ Every contract must explicitly check that outputs match expected:
 
 ### The Minimum Viable Contract
 
-The smallest real contract in ParityUSD (LoanTokenSidecar.cash):
+The smallest real contract in ParyonUSD (LoanTokenSidecar.cash):
 ```cashscript
 contract LoanTokenSidecar() {
     function attach() {
@@ -504,7 +504,7 @@ For converting EVM to CashScript:
 
 ## 8. KEY TAKEAWAYS FOR PREVENTING PLACEHOLDER VIOLATIONS
 
-The ParityUSD analysis reveals **why placeholders are architecturally impossible in well-designed CashScript**:
+The ParyonUSD analysis reveals **why placeholders are architecturally impossible in well-designed CashScript**:
 
 1. **Every contract PROVES something** - The sidecar proves it was created with the main contract. The function contract proves it has authority to execute that operation. If a contract proves nothing, it has no reason to exist.
 
@@ -519,4 +519,4 @@ The ParityUSD analysis reveals **why placeholders are architecturally impossible
 3. Enforce minimum require() statements per contract
 4. Validate that every contract has meaningful logic connecting inputs to outputs
 
-The ParityUSD patterns give us concrete examples of what "real" multi-contract systems look like - every contract has purpose, every function has validation, and every interaction is explicitly constrained.
+The ParyonUSD patterns give us concrete examples of what "real" multi-contract systems look like - every contract has purpose, every function has validation, and every interaction is explicitly constrained.

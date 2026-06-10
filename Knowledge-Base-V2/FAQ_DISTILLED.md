@@ -392,7 +392,7 @@ Check `tx.inputs[i].tokenCategory.length > 32` to verify it's an NFT.
 ### Reference implementations
 **Q**: Where can I find advanced open-source contracts?
 
-**A**: ParityUSD open-sourced 26 contracts forming one of the most advanced BCH applications. See parityusd.com/blog/open-source-contracts
+**A**: ParyonUSD open-sourced 26 contracts forming one of the most advanced BCH applications. See paryonusd.com/blog/open-source-contracts
 
 ---
 
