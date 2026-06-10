@@ -9,7 +9,7 @@ This is a **Bitcoin Cash (BCH) Knowledge Base** focused on **CashScript smart co
 - CashTokens (native fungible and non-fungible tokens)
 - SDK usage for contract deployment and interaction
 - Security best practices and vulnerability patterns
-- Real-world production patterns (including ParityUSD, a 26-contract stablecoin system)
+- Real-world production patterns (including ParyonUSD, a 26-contract stablecoin system)
 - Community FAQs extracted from BCH developer Telegram groups
 
 ## Critical Domain Knowledge

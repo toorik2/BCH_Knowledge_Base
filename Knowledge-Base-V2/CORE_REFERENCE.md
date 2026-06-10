@@ -577,7 +577,7 @@ require((flags & 0x01) == 0x01);
 
 ### Array Bounds
 ```cashscript
-// Guard optional output access with if-statement (from ParityUSD)
+// Guard optional output access with if-statement (from ParyonUSD)
 if (tx.outputs.length > 8) {
     bytes tokenCategoryOutput8 = tx.outputs[8].tokenCategory;
     if (tokenCategoryOutput8 != 0x) {

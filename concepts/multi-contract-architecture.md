@@ -1,6 +1,6 @@
 # Multi-Contract Architecture in CashScript
 
-This document covers production-grade patterns for building complex systems with multiple interacting CashScript contracts. These patterns are derived from analysis of ParityUSD, a 26-contract production stablecoin system.
+This document covers production-grade patterns for building complex systems with multiple interacting CashScript contracts. These patterns are derived from analysis of ParyonUSD, a 26-contract production stablecoin system.
 
 ---
 

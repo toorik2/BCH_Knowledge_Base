@@ -316,7 +316,7 @@
         },
         {
           "q": "Are CashScript contracts deployed like Ethereum smart contracts?",
-          "a": "Think of BCH contracts as elaborate spending conditions rather than deployments. Some contracts have unique 'deployments' authenticated by a tokenId (like Moria, ParityUSD), while others are just spending scripts like multisig or vaults that share the same spending conditions and get a stable address. You can also put functions themselves on token commitments (if they fit in 128 bytes), giving you local transferrable functions."
+          "a": "Think of BCH contracts as elaborate spending conditions rather than deployments. Some contracts have unique 'deployments' authenticated by a tokenId (like Moria, ParyonUSD), while others are just spending scripts like multisig or vaults that share the same spending conditions and get a stable address. You can also put functions themselves on token commitments (if they fit in 128 bytes), giving you local transferrable functions."
         },
         {
           "q": "Do CashScript contracts have an address and balance?",
@@ -489,7 +489,7 @@
         },
         {
           "q": "Where can I find advanced open-source CashScript contract examples?",
-          "a": "ParityUSD has open-sourced their smart contract source code - 26 contracts forming one of the most advanced applications built on BCH script. See parityusd.com/blog/open-source-contracts for the full code and documentation."
+          "a": "ParyonUSD has open-sourced their smart contract source code - 26 contracts forming one of the most advanced applications built on BCH script. See paryonusd.com/blog/open-source-contracts for the full code and documentation."
         },
         {
           "q": "What interesting BCH project ideas would the CashScript team like to see built?",

@@ -386,7 +386,7 @@ contract StreamingPayment(
 
 ### 7. Price Feed Oracle
 
-Based on ParityUSD's PriceContract — single oracle signs price data, contract validates
+Based on ParyonUSD's PriceContract — single oracle signs price data, contract validates
 heartbeat or deviation threshold before accepting updates.
 
 ```cashscript
@@ -750,9 +750,9 @@ describe('Production Contract Tests', () => {
 
 These real-world patterns demonstrate how CashScript can be used to build sophisticated applications on Bitcoin Cash, from DeFi protocols to NFT marketplaces and governance systems. Each pattern includes security considerations, error handling, and practical implementation details suitable for production use.
 
-## ParityUSD-Derived Production Patterns
+## ParyonUSD-Derived Production Patterns
 
-The following patterns are derived from analysis of ParityUSD, a production stablecoin system with 26 contracts. See `parityusd-analysis.md` for the full analysis.
+The following patterns are derived from analysis of ParyonUSD, a production stablecoin system with 26 contracts. See `paryonusd-analysis.md` for the full analysis.
 
 ### 14. Sidecar Contract Template
 
@@ -1108,4 +1108,4 @@ contract OriginEnforcer(bytes32 factoryCategory) {
 }
 ```
 
-These ParityUSD-derived patterns represent battle-tested approaches used in production DeFi systems. Each pattern emphasizes explicit validation, output limiting, and clear constraint specification.
+These ParyonUSD-derived patterns represent battle-tested approaches used in production DeFi systems. Each pattern emphasizes explicit validation, output limiting, and clear constraint specification.
